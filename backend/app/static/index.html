@@ -12,9 +12,8 @@
       <p class="eyebrow">NOVA PDF Suite</p>
       <h1>Le catalogue PDF prend de l’ampleur.</h1>
       <p class="hero-text">
-        Outils PDF, conversions documentaires, protection, comparaison et extraction texte.
-        Les fonctions branchees ici sont executees localement; les modules IA, signature avancee
-        et OCR image restent hors lot dans cet environnement.
+        Outils PDF, conversions documentaires, protection, comparaison, signature visible,
+        traduction et resume assiste par IA avec fallback local.
       </p>
       <div class="hero-pills">
         <span>PDF natif</span>
@@ -389,14 +388,29 @@
 
     <section class="group">
       <div class="group-heading">
-        <p class="group-kicker">Fonctions hors lot</p>
-        <h2>Prevues, mais non fiables ici sans moteur externe</h2>
+        <p class="group-kicker">Signature et IA</p>
+        <h2>Signer, resumer et traduire</h2>
       </div>
 
       <div class="tool-grid compact-grid">
-        <article class="tool-card coming-soon">
-          <div class="title-row"><h3>Signer PDF</h3><span class="badge muted">Bientot</span></div>
-          <p>Necessite une vraie chaine de signature numerique et certificats.</p>
+        <article class="tool-card">
+          <div class="title-row"><h3>Signer PDF</h3><span class="badge">Nouveau</span></div>
+          <p>Ajoute une signature visible sur chaque page. Ce n'est pas une signature cryptographique certifiee.</p>
+          <label class="dropzone" data-dropzone="signFile">
+            <input id="signFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="signFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="signerName" type="text" placeholder="Nom du signataire" />
+          <input id="signReason" type="text" placeholder="Motif (optionnel)" />
+          <input id="signLocation" type="text" placeholder="Lieu (optionnel)" />
+          <select id="signPosition">
+            <option value="bottom-right">Bas droite</option>
+            <option value="bottom-left">Bas gauche</option>
+            <option value="top-right">Haut droite</option>
+            <option value="top-left">Haut gauche</option>
+          </select>
+          <button type="button" data-action="sign">Signer</button>
         </article>
         <article class="tool-card">
           <div class="title-row"><h3>Censurer PDF</h3><span class="badge">Nouveau</span></div>
@@ -412,6 +426,28 @@
             <span>Sensible a la casse</span>
           </label>
           <button type="button" data-action="censor">Censurer</button>
+        </article>
+        <article class="tool-card">
+          <div class="title-row"><h3>Generateur de resume par IA</h3><span class="badge beta">Beta</span></div>
+          <p>Produit un resume texte. Utilise OPENAI_API_KEY si disponible, sinon un resume local extractif.</p>
+          <label class="dropzone" data-dropzone="summaryFile">
+            <input id="summaryFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="summaryFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="summarySentences" type="number" min="1" max="20" step="1" value="6" />
+          <button type="button" data-action="summarize">Generer le resume</button>
+        </article>
+        <article class="tool-card">
+          <div class="title-row"><h3>Traduire le PDF</h3><span class="badge beta">Beta</span></div>
+          <p>Extrait le texte, le traduit, puis reconstruit un PDF texte.</p>
+          <label class="dropzone" data-dropzone="translateFile">
+            <input id="translateFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="translateFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="targetLanguage" type="text" value="english" placeholder="Langue cible" />
+          <button type="button" data-action="translate">Traduire</button>
         </article>
         <article class="tool-card coming-soon">
           <div class="title-row"><h3>Generateur de resume par IA</h3><span class="badge muted">Bientot</span></div>

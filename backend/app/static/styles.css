@@ -352,8 +352,7 @@ input[type="range"] {
 }
 
 .coming-soon {
-  opacity: 0.78;
-  border-style: dashed;
+  display: none;
 }
 
 #message {

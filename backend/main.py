@@ -31,6 +31,9 @@ from pdf_utils import (
     repair_pdf,
     reorder_pdf_pages,
     rotate_pdf,
+    sign_pdf,
+    summarize_pdf,
+    translate_pdf,
     split_pdf,
     unlock_pdf,
     word_to_pdf,
@@ -234,3 +237,24 @@ async def api_censor(
     case_sensitive: bool = Form(False),
 ):
     return file_download(censor_pdf(file, terms, case_sensitive), "application/pdf", "censored.pdf")
+
+
+@app.post("/api/sign")
+async def api_sign(
+    file: UploadFile = File(...),
+    signer_name: str = Form(...),
+    reason: str = Form(""),
+    location: str = Form(""),
+    position: str = Form("bottom-right"),
+):
+    return file_download(sign_pdf(file, signer_name, reason, location, position), "application/pdf", "signed.pdf")
+
+
+@app.post("/api/ai/summarize")
+async def api_summarize(file: UploadFile = File(...), max_sentences: int = Form(6)):
+    return file_download(summarize_pdf(file, max_sentences), "text/plain; charset=utf-8", "summary.txt")
+
+
+@app.post("/api/ai/translate")
+async def api_translate(file: UploadFile = File(...), target_language: str = Form("francais")):
+    return file_download(translate_pdf(file, target_language), "application/pdf", "translated.pdf")

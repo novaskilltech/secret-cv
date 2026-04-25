@@ -41,12 +41,17 @@ Prototype open-source d'un editeur PDF web inspire de ilovepdf.com.
 - Ajouter des numeros de pages: `POST /api/numbering`
 - Ajouter un filigrane: `POST /api/watermark`
 - Rogner PDF: `POST /api/crop`
+- Signer PDF avec signature visible: `POST /api/sign`
 
 ### Securite PDF
 - Deverrouiller PDF: `POST /api/unlock`
 - Proteger PDF: `POST /api/protect`
 - Comparer PDF: `POST /api/compare`
 - Censurer PDF: `POST /api/censor`
+
+### IA PDF
+- Generer un resume: `POST /api/ai/summarize`
+- Traduire le PDF vers une langue cible: `POST /api/ai/translate`
 
 ## Notes importantes
 - Les conversions `Word/Excel/PowerPoint/HTML -> PDF` utilisent automatiquement `LibreOffice` quand il est disponible sur le serveur ou dans le conteneur.
@@ -58,7 +63,10 @@ Prototype open-source d'un editeur PDF web inspire de ilovepdf.com.
 - `OCR PDF` utilise `OCRmyPDF` quand il est disponible pour traiter les PDF scannes ou images.
 - Si `OCRmyPDF` n'est pas disponible ou echoue, la route retombe sur l'extraction de texte native du PDF.
 - `Censurer PDF` est maintenant disponible en mode irreversible par rasterisation des pages touchees et reconstruction du PDF.
-- Signature numerique, resume IA et traduction IA ne sont pas encore livres.
+- `Signer PDF` ajoute une signature visible sur les pages. Ce n'est pas une signature cryptographique certifiee.
+- Resume IA et traduction IA utilisent `OPENAI_API_KEY` si la variable est configuree.
+- Sans `OPENAI_API_KEY`, le backend utilise un fallback local deterministe: resume extractif et traduction locale simplifiee.
+- Signature numerique certifiee avec certificats n'est pas encore livree.
 
 ## Installation
 ```bash
@@ -114,12 +122,11 @@ python test_endpoints.py
 - Conteneur Docker execute avec un utilisateur non-root
 - Drag and drop sur le frontend
 - Telechargement automatique du resultat
-- Tests d'integration backend: `21/21` verts
+- Tests d'integration backend: `24/24` verts
 
 ## Roadmap restante
 
 ### Blocages techniques a lever
-- Signature PDF avec certificats
+- Signature PDF cryptographique avec certificats
 - OCR image complet
-- Resume et traduction par IA
 - Conversions Office haute fidelite via moteur externe

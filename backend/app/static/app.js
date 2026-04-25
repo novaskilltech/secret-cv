@@ -24,6 +24,9 @@ const API = {
   unlock: "/api/unlock",
   compare: "/api/compare",
   censor: "/api/censor",
+  sign: "/api/sign",
+  summarize: "/api/ai/summarize",
+  translate: "/api/ai/translate",
 };
 
 const PAGE_RANGE_PATTERN = /^\s*\d+\s*(?:-\s*\d+\s*)?(?:,\s*\d+\s*(?:-\s*\d+\s*)?)*\s*$/;
@@ -162,6 +165,24 @@ async function submitForm(action) {
         form.append("terms", getRequiredText("censorTerms", "Indiquez un ou plusieurs termes a censurer."));
         form.append("case_sensitive", document.getElementById("censorCaseSensitive").checked ? "true" : "false");
         await submitRequest(API.censor, form, "censored.pdf");
+        break;
+      case "sign":
+        form.append("file", getRequiredFile("signFile", "Selectionnez un PDF."));
+        form.append("signer_name", getRequiredText("signerName", "Entrez le nom du signataire."));
+        form.append("reason", document.getElementById("signReason").value.trim());
+        form.append("location", document.getElementById("signLocation").value.trim());
+        form.append("position", document.getElementById("signPosition").value);
+        await submitRequest(API.sign, form, "signed.pdf");
+        break;
+      case "summarize":
+        form.append("file", getRequiredFile("summaryFile", "Selectionnez un PDF."));
+        form.append("max_sentences", document.getElementById("summarySentences").value);
+        await submitRequest(API.summarize, form, "summary.txt");
+        break;
+      case "translate":
+        form.append("file", getRequiredFile("translateFile", "Selectionnez un PDF."));
+        form.append("target_language", getRequiredText("targetLanguage", "Entrez la langue cible."));
+        await submitRequest(API.translate, form, "translated.pdf");
         break;
       default:
         throw new Error("Action inconnue.");

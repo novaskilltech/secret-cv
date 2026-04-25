@@ -4,7 +4,11 @@ import os
 import subprocess
 import shutil
 import tempfile
+import textwrap
+import urllib.error
+import urllib.request
 import zipfile
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Iterable, List, Optional
@@ -19,6 +23,7 @@ from pptx import Presentation
 from pptx.util import Inches
 from PyPDF2 import PdfReader, PdfWriter
 from PyPDF2.errors import PdfReadError
+from reportlab.lib import colors
 from pdf2image import convert_from_path
 from pdf2image.exceptions import PDFInfoNotInstalledError, PDFPageCountError, PDFSyntaxError
 from reportlab.lib.colors import black
@@ -52,6 +57,15 @@ PAGE_NUMBER_POSITIONS = {
 MAX_UPLOAD_BYTES = int(os.getenv("NOVA_MAX_UPLOAD_BYTES", str(50 * 1024 * 1024)))
 COMMAND_TIMEOUT_SECONDS = int(os.getenv("NOVA_COMMAND_TIMEOUT_SECONDS", "120"))
 COPY_CHUNK_BYTES = 1024 * 1024
+AI_MAX_INPUT_CHARS = int(os.getenv("NOVA_AI_MAX_INPUT_CHARS", "24000"))
+AI_TIMEOUT_SECONDS = int(os.getenv("NOVA_AI_TIMEOUT_SECONDS", "45"))
+AI_MODEL = os.getenv("NOVA_AI_MODEL", "gpt-4o-mini")
+SIGNATURE_POSITIONS = {
+    "bottom-left",
+    "bottom-right",
+    "top-left",
+    "top-right",
+}
 
 
 class _HTMLTextExtractor(HTMLParser):
@@ -369,6 +383,38 @@ def _draw_page_number(pdf_canvas, text: str, x: float, y: float, font_name: str,
     pdf_canvas.restoreState()
 
 
+def _signature_box_coordinates(width: float, height: float, position: str) -> tuple[float, float, float, float]:
+    box_width = min(max(width * 0.36, 190), width - 48)
+    box_height = 82
+    margin = 28
+    if position.endswith("right"):
+        x = width - box_width - margin
+    else:
+        x = margin
+    if position.startswith("top"):
+        y = height - box_height - margin
+    else:
+        y = margin
+    return x, y, box_width, box_height
+
+
+def _draw_signature_box(pdf_canvas, width: float, height: float, lines: List[str], position: str):
+    x, y, box_width, box_height = _signature_box_coordinates(width, height, position)
+    pdf_canvas.saveState()
+    pdf_canvas.setStrokeColor(colors.HexColor("#1f2937"))
+    pdf_canvas.setFillColor(colors.Color(1, 1, 1, alpha=0.88))
+    pdf_canvas.roundRect(x, y, box_width, box_height, 8, stroke=1, fill=1)
+    pdf_canvas.setFillColor(colors.HexColor("#111827"))
+    pdf_canvas.setFont("Helvetica-Bold", 10)
+    pdf_canvas.drawString(x + 12, y + box_height - 22, lines[0])
+    pdf_canvas.setFont("Helvetica", 8)
+    current_y = y + box_height - 38
+    for line in lines[1:]:
+        pdf_canvas.drawString(x + 12, current_y, line[:72])
+        current_y -= 11
+    pdf_canvas.restoreState()
+
+
 def _render_pdf_with_pdfium(source_path: Path) -> List[Image.Image]:
     document = None
     rendered_images: List[Image.Image] = []
@@ -461,6 +507,112 @@ def _text_lines_to_pdf(lines: Iterable[str], title: Optional[str] = None) -> byt
     pdf_canvas.save()
     buffer.seek(0)
     return buffer.read()
+
+
+def _extract_full_pdf_text(source_path: Path) -> str:
+    page_texts = _extract_pdf_text_by_page(source_path)
+    text = "\n\n".join(text for text in page_texts if text.strip()).strip()
+    if not text:
+        raise ValueError("Aucun texte exploitable trouve dans ce PDF.")
+    return text
+
+
+def _call_openai_text(system_prompt: str, user_prompt: str) -> Optional[str]:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+
+    payload = {
+        "model": AI_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt[:AI_MAX_INPUT_CHARS]},
+        ],
+        "temperature": 0.2,
+    }
+    request = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=AI_TIMEOUT_SECONDS) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, KeyError):
+        return None
+    choices = body.get("choices") or []
+    if not choices:
+        return None
+    content = choices[0].get("message", {}).get("content", "")
+    return content.strip() or None
+
+
+def _sentences_from_text(text: str) -> List[str]:
+    normalized = " ".join(text.replace("\r", " ").replace("\n", " ").split())
+    sentences: List[str] = []
+    current = []
+    for char in normalized:
+        current.append(char)
+        if char in ".!?":
+            sentence = "".join(current).strip()
+            if len(sentence) > 24:
+                sentences.append(sentence)
+            current = []
+    tail = "".join(current).strip()
+    if len(tail) > 24:
+        sentences.append(tail)
+    return sentences
+
+
+def _local_summary(text: str, max_sentences: int) -> str:
+    sentences = _sentences_from_text(text)
+    if not sentences:
+        return textwrap.shorten(text, width=1200, placeholder="...")
+    selected = sentences[: max(1, min(max_sentences, len(sentences)))]
+    bullets = "\n".join(f"- {sentence}" for sentence in selected)
+    return f"Resume local\n\n{bullets}"
+
+
+def _local_translate_text(text: str, target_language: str) -> str:
+    language = target_language.strip() or "francais"
+    replacements = {
+        "english": {
+            "bonjour": "hello",
+            "page": "page",
+            "document": "document",
+            "confidentiel": "confidential",
+            "client": "client",
+            "prix": "price",
+            "produit": "product",
+        },
+        "francais": {
+            "hello": "bonjour",
+            "page": "page",
+            "document": "document",
+            "confidential": "confidentiel",
+            "client": "client",
+            "price": "prix",
+            "product": "produit",
+        },
+    }
+    dictionary = replacements.get(language.casefold(), {})
+    translated_lines = []
+    for line in text.splitlines():
+        words = []
+        for word in line.split():
+            key = word.strip(".,;:!?()[]{}\"'").casefold()
+            words.append(dictionary.get(key, word))
+        translated_lines.append(" ".join(words))
+    translated = "\n".join(translated_lines).strip()
+    return (
+        f"Traduction locale vers {language}\n"
+        "Configurez OPENAI_API_KEY pour une traduction IA haute fidelite.\n\n"
+        f"{translated}"
+    )
 
 
 def merge_pdfs(files: List) -> bytes:
@@ -897,6 +1049,44 @@ def add_page_numbers(file, format_str: str = "{page}", position: str = "bottom-r
         cleanup([source_path])
 
 
+def sign_pdf(file, signer_name: str, reason: str = "", location: str = "", position: str = "bottom-right") -> bytes:
+    signer = (signer_name or "").strip()
+    if not signer:
+        raise ValueError("Le nom du signataire est obligatoire.")
+    if position not in SIGNATURE_POSITIONS:
+        raise ValueError("La position de signature demandee n'est pas supportee.")
+
+    source_path = save_upload_file(file)
+    try:
+        reader = _load_pdf_reader(source_path)
+        writer = PdfWriter()
+        signed_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        lines = [
+            f"Signe par {signer}",
+            f"Date: {signed_at}",
+        ]
+        if reason.strip():
+            lines.append(f"Motif: {reason.strip()}")
+        if location.strip():
+            lines.append(f"Lieu: {location.strip()}")
+        lines.append("Signature visible non cryptographique")
+
+        for page in reader.pages:
+            width, height = _page_dimensions(page)
+            overlay = _build_overlay_page(
+                width,
+                height,
+                lambda pdf_canvas, draw_lines=lines: _draw_signature_box(
+                    pdf_canvas, width, height, draw_lines, position
+                ),
+            )
+            page.merge_page(overlay)
+            writer.add_page(page)
+        return _serialize_writer(writer)
+    finally:
+        cleanup([source_path])
+
+
 def protect_pdf(file, user_password: str, owner_password: Optional[str] = None) -> bytes:
     if not user_password:
         raise ValueError("Le mot de passe utilisateur est obligatoire.")
@@ -970,6 +1160,43 @@ def compare_pdfs(file_a, file_b) -> bytes:
         return json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8")
     finally:
         cleanup([path_a, path_b])
+
+
+def summarize_pdf(file, max_sentences: int = 6) -> bytes:
+    if max_sentences < 1 or max_sentences > 20:
+        raise ValueError("Le nombre de phrases du resume doit etre compris entre 1 et 20.")
+
+    source_path = save_upload_file(file)
+    try:
+        text = _extract_full_pdf_text(source_path)
+        ai_summary = _call_openai_text(
+            "Tu resumes des documents PDF en francais, avec des points courts et fideles.",
+            f"Resume ce document en {max_sentences} points maximum:\n\n{text}",
+        )
+        summary = ai_summary or _local_summary(text, max_sentences)
+        return summary.encode("utf-8")
+    finally:
+        cleanup([source_path])
+
+
+def translate_pdf(file, target_language: str = "francais") -> bytes:
+    language = (target_language or "").strip()
+    if not language:
+        raise ValueError("La langue cible est obligatoire.")
+    if len(language) > 40:
+        raise ValueError("La langue cible est trop longue.")
+
+    source_path = save_upload_file(file)
+    try:
+        text = _extract_full_pdf_text(source_path)
+        ai_translation = _call_openai_text(
+            "Tu traduis fidelement le texte fourni. Conserve les paragraphes et ne rajoute pas d'analyse.",
+            f"Traduis ce texte vers {language}:\n\n{text}",
+        )
+        translated = ai_translation or _local_translate_text(text, language)
+        return _text_lines_to_pdf(translated.splitlines(), title=f"Traduction vers {language}")
+    finally:
+        cleanup([source_path])
 
 
 def html_to_pdf(file) -> bytes:

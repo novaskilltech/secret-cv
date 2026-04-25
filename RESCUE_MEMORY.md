@@ -18,6 +18,12 @@
 - Test ajoute: couvert indirectement par la suite de non-regression; ajouter un test unitaire mocke si la couche utilitaire grossit.
 - Lecon: toute integration moteur externe doit etre bornee par timeout et retour d'erreur controle.
 
+## Feature: signature visible, resume IA et traduction PDF
+- Cause racine: les cartes etaient presentes comme hors lot et sans endpoints backend.
+- Correction: ajout des routes `/api/sign`, `/api/ai/summarize`, `/api/ai/translate` et des cartes frontend actives.
+- Test ajoute: signature visible, resume fallback local, traduction fallback local.
+- Lecon: les fonctionnalites IA doivent rester testables sans fournisseur externe; le chemin provider doit etre optionnel et borne.
+
 # WATCHLIST
 
 - Plages de pages: tester `1-3`, `3-1`, doublons, pages hors limites, document vide.
@@ -25,3 +31,5 @@
 - Moteurs externes: timeout, absence du binaire, fichier de sortie manquant, erreurs non UTF-8.
 - PDF sensibles: chiffrement, PDF corrompu, PDF scanne sans texte, censure partielle par mots fractionnes.
 - Deploiement: image Docker non-root, rollback, healthcheck, stockage temporaire borne.
+- IA: absence de cle API, timeout provider, donnees sensibles envoyees au provider, fallback local documente.
+- Signature: ne pas presenter la signature visible comme signature cryptographique certifiee.

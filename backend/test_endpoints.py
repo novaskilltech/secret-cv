@@ -287,6 +287,38 @@ class NovaPdfEndpointsTest(unittest.TestCase):
         redacted_text = pdf_reader_from_bytes(response.content).pages[0].extract_text() or ""
         self.assertNotIn("SECRET", redacted_text)
 
+    def test_sign_endpoint(self):
+        response = self.client.post(
+            "/api/sign",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"signer_name": "NOVA Rescue", "reason": "Validation", "location": "Lab"},
+        )
+        self.assertEqual(response.status_code, 200)
+        first_page_text = pdf_reader_from_bytes(response.content).pages[0].extract_text() or ""
+        self.assertIn("Signe par NOVA Rescue", first_page_text)
+        self.assertIn("Signature visible non cryptographique", first_page_text)
+
+    def test_summarize_endpoint(self):
+        with patch("pdf_utils._call_openai_text", return_value=None):
+            response = self.client.post(
+                "/api/ai/summarize",
+                files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+                data={"max_sentences": "3"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Test Page", response.content.decode("utf-8"))
+
+    def test_translate_endpoint(self):
+        with patch("pdf_utils._call_openai_text", return_value=None):
+            response = self.client.post(
+                "/api/ai/translate",
+                files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+                data={"target_language": "english"},
+            )
+        self.assertEqual(response.status_code, 200)
+        text = "\n".join((page.extract_text() or "") for page in pdf_reader_from_bytes(response.content).pages)
+        self.assertIn("Traduction locale vers english", text)
+
     def test_invalid_page_range_returns_400(self):
         response = self.client.post(
             "/api/split",
