@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NOVA PDF Tools</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">NOVA PDF Suite</p>
+      <h1>Le catalogue PDF prend de l’ampleur.</h1>
+      <p class="hero-text">
+        Outils PDF, conversions documentaires, protection, comparaison et extraction texte.
+        Les fonctions branchees ici sont executees localement; les modules IA, signature avancee
+        et OCR image restent hors lot dans cet environnement.
+      </p>
+      <div class="hero-pills">
+        <span>PDF natif</span>
+        <span>Conversions documentaires</span>
+        <span>Securite & comparaison</span>
+      </div>
+    </div>
+
+    <aside class="status-panel">
+      <h2>Statut</h2>
+      <p class="status-caption">Les cartes avec le badge `Beta` utilisent un rendu simplifie base sur le contenu extrait.</p>
+      <div id="message" class="info">Pret.</div>
+    </aside>
+  </header>
+
+  <main>
+    <section class="group">
+      <div class="group-heading">
+        <p class="group-kicker">Organiser PDF</p>
+        <h2>Assembler, couper, extraire, reordonner</h2>
+      </div>
+
+      <div class="tool-grid">
+        <article class="tool-card">
+          <h3>Fusionner PDF</h3>
+          <p>Combinez plusieurs PDF dans l'ordre de votre selection.</p>
+          <label class="dropzone" data-dropzone="mergeFiles">
+            <input id="mergeFiles" class="file-input" type="file" multiple accept="application/pdf" />
+            <span class="dropzone-title">Glissez plusieurs PDF ici</span>
+            <span class="dropzone-meta" data-file-label="mergeFiles">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="merge">Fusionner</button>
+        </article>
+
+        <article class="tool-card">
+          <h3>Diviser PDF</h3>
+          <p>Recuperez uniquement les pages voulues.</p>
+          <label class="dropzone" data-dropzone="splitFile">
+            <input id="splitFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="splitFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="splitPages" type="text" placeholder="Pages (ex: 1,3-5)" />
+          <button type="button" data-action="split">Diviser</button>
+        </article>
+
+        <article class="tool-card">
+          <h3>Supprimer des pages</h3>
+          <p>Retirez des pages precises sans toucher au reste.</p>
+          <label class="dropzone" data-dropzone="deleteFile">
+            <input id="deleteFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="deleteFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="deletePages" type="text" placeholder="Pages a supprimer" />
+          <button type="button" data-action="delete">Supprimer</button>
+        </article>
+
+        <article class="tool-card">
+          <h3>Extraire des pages</h3>
+          <p>Generez un nouveau PDF avec une selection donnee.</p>
+          <label class="dropzone" data-dropzone="extractFile">
+            <input id="extractFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="extractFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="extractPages" type="text" placeholder="Pages a extraire" />
+          <button type="button" data-action="extract">Extraire</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>Organiser PDF</h3><span class="badge">Nouveau</span></div>
+          <p>Recomposez l'ordre des pages. Exemple: `3,1,2`.</p>
+          <label class="dropzone" data-dropzone="reorderFile">
+            <input id="reorderFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="reorderFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="reorderPages" type="text" placeholder="Nouvel ordre (ex: 3,1,2)" />
+          <button type="button" data-action="reorder">Reordonner</button>
+        </article>
+      </div>
+    </section>
+
+    <section class="group">
+      <div class="group-heading">
+        <p class="group-kicker">Optimiser le PDF</p>
+        <h2>Compression, reparation et extraction texte</h2>
+      </div>
+
+      <div class="tool-grid compact-grid">
+        <article class="tool-card">
+          <h3>Compresser PDF</h3>
+          <p>Reduisez la taille du document pour le partage.</p>
+          <label class="dropzone" data-dropzone="compressFile">
+            <input id="compressFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="compressFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="compress">Compresser</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>Reparer PDF</h3><span class="badge">Nouveau</span></div>
+          <p>Tente une reconstruction propre du fichier PDF.</p>
+          <label class="dropzone" data-dropzone="repairFile">
+            <input id="repairFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="repairFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="repair">Reparer</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>OCR PDF</h3><span class="badge beta">Beta</span></div>
+          <p>Exporte le texte exploitable du PDF. Pas d’OCR image sans moteur externe.</p>
+          <label class="dropzone" data-dropzone="ocrFile">
+            <input id="ocrFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="ocrFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="ocr">Extraire le texte</button>
+        </article>
+      </div>
+    </section>
+
+    <section class="group">
+      <div class="group-heading">
+        <p class="group-kicker">Convertir en PDF</p>
+        <h2>Images, HTML et documents Office</h2>
+      </div>
+
+      <div class="tool-grid">
+        <article class="tool-card">
+          <h3>JPG en PDF</h3>
+          <p>Convertissez une image en document PDF.</p>
+          <label class="dropzone" data-dropzone="imageFile">
+            <input id="imageFile" class="file-input" type="file" accept="image/*" />
+            <span class="dropzone-title">Glissez une image ici</span>
+            <span class="dropzone-meta" data-file-label="imageFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="convert">Convertir</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>Word en PDF</h3><span class="badge beta">Beta</span></div>
+          <p>Rendu simplifie a partir du texte et des tableaux du `.docx`.</p>
+          <label class="dropzone" data-dropzone="wordToPdfFile">
+            <input id="wordToPdfFile" class="file-input" type="file" accept=".docx" />
+            <span class="dropzone-title">Glissez un DOCX ici</span>
+            <span class="dropzone-meta" data-file-label="wordToPdfFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="word-to-pdf">Convertir</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>PowerPoint en PDF</h3><span class="badge beta">Beta</span></div>
+          <p>Rendu texte simplifie des diapositives `.pptx`.</p>
+          <label class="dropzone" data-dropzone="powerpointToPdfFile">
+            <input id="powerpointToPdfFile" class="file-input" type="file" accept=".pptx" />
+            <span class="dropzone-title">Glissez un PPTX ici</span>
+            <span class="dropzone-meta" data-file-label="powerpointToPdfFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="powerpoint-to-pdf">Convertir</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>Excel en PDF</h3><span class="badge beta">Beta</span></div>
+          <p>Rendu ligne par ligne des feuilles `.xlsx`.</p>
+          <label class="dropzone" data-dropzone="excelToPdfFile">
+            <input id="excelToPdfFile" class="file-input" type="file" accept=".xlsx" />
+            <span class="dropzone-title">Glissez un XLSX ici</span>
+            <span class="dropzone-meta" data-file-label="excelToPdfFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="excel-to-pdf">Convertir</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>HTML en PDF</h3><span class="badge beta">Beta</span></div>
+          <p>Conversion textuelle du contenu HTML.</p>
+          <label class="dropzone" data-dropzone="htmlToPdfFile">
+            <input id="htmlToPdfFile" class="file-input" type="file" accept=".html,.htm" />
+            <span class="dropzone-title">Glissez un fichier HTML ici</span>
+            <span class="dropzone-meta" data-file-label="htmlToPdfFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="html-to-pdf">Convertir</button>
+        </article>
+      </div>
+    </section>
+
+    <section class="group">
+      <div class="group-heading">
+        <p class="group-kicker">Convertir depuis PDF</p>
+        <h2>Images et exports vers formats bureautiques</h2>
+      </div>
+
+      <div class="tool-grid">
+        <article class="tool-card">
+          <h3>PDF en JPG</h3>
+          <p>Exporte chaque page du PDF en JPG dans un ZIP.</p>
+          <label class="dropzone" data-dropzone="pdfToJpgFile">
+            <input id="pdfToJpgFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="pdfToJpgFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="pdf-to-jpg">Convertir</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>PDF en Word</h3><span class="badge beta">Beta</span></div>
+          <p>Exporte le texte du PDF dans un document Word.</p>
+          <label class="dropzone" data-dropzone="pdfToWordFile">
+            <input id="pdfToWordFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="pdfToWordFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="pdf-to-word">Convertir</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>PDF en PowerPoint</h3><span class="badge beta">Beta</span></div>
+          <p>Chaque page devient une diapositive image dans un `.pptx`.</p>
+          <label class="dropzone" data-dropzone="pdfToPowerPointFile">
+            <input id="pdfToPowerPointFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="pdfToPowerPointFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="pdf-to-powerpoint">Convertir</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>PDF en Excel</h3><span class="badge beta">Beta</span></div>
+          <p>Tables si detectees, sinon texte page par page en colonnes.</p>
+          <label class="dropzone" data-dropzone="pdfToExcelFile">
+            <input id="pdfToExcelFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="pdfToExcelFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="pdf-to-excel">Convertir</button>
+        </article>
+      </div>
+    </section>
+
+    <section class="group">
+      <div class="group-heading">
+        <p class="group-kicker">Modifier PDF</p>
+        <h2>Rotation, numerotation, filigrane et recadrage</h2>
+      </div>
+
+      <div class="tool-grid">
+        <article class="tool-card">
+          <h3>Faire pivoter PDF</h3>
+          <p>Rotation par multiples de 90 degres.</p>
+          <label class="dropzone" data-dropzone="rotateFile">
+            <input id="rotateFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="rotateFile">Aucun fichier selectionne</span>
+          </label>
+          <select id="rotateAngle">
+            <option value="90">90 degres</option>
+            <option value="180">180 degres</option>
+            <option value="270">270 degres</option>
+          </select>
+          <input id="rotatePages" type="text" placeholder="Pages (optionnel)" />
+          <button type="button" data-action="rotate">Tourner</button>
+        </article>
+
+        <article class="tool-card">
+          <h3>Ajouter des numeros de pages</h3>
+          <p>Formats acceptes: `Page {page}` ou `Page {page}/{total}`.</p>
+          <label class="dropzone" data-dropzone="numberingFile">
+            <input id="numberingFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="numberingFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="numberingFormat" type="text" value="Page {page}/{total}" />
+          <select id="numberingPosition">
+            <option value="bottom-right">Bas droite</option>
+            <option value="bottom-center">Bas centre</option>
+            <option value="bottom-left">Bas gauche</option>
+            <option value="top-right">Haut droite</option>
+            <option value="top-center">Haut centre</option>
+            <option value="top-left">Haut gauche</option>
+          </select>
+          <button type="button" data-action="numbering">Numeroter</button>
+        </article>
+
+        <article class="tool-card">
+          <h3>Ajouter un filigrane</h3>
+          <p>Texte applique sur toutes les pages du document.</p>
+          <label class="dropzone" data-dropzone="watermarkFile">
+            <input id="watermarkFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="watermarkFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="watermarkText" type="text" value="CONFIDENTIEL" />
+          <div class="slider-row">
+            <input id="watermarkOpacity" type="range" min="0.1" max="1" step="0.1" value="0.3" />
+            <span id="opacityLabel">Opacite: 0.3</span>
+          </div>
+          <button type="button" data-action="watermark">Appliquer</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>Rogner PDF</h3><span class="badge">Nouveau</span></div>
+          <p>Valeurs en points PDF. Exemple: 20 pour rogner une marge fine.</p>
+          <label class="dropzone" data-dropzone="cropFile">
+            <input id="cropFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="cropFile">Aucun fichier selectionne</span>
+          </label>
+          <div class="mini-grid">
+            <input id="cropTop" type="number" min="0" step="1" placeholder="Haut" value="20" />
+            <input id="cropRight" type="number" min="0" step="1" placeholder="Droite" value="20" />
+            <input id="cropBottom" type="number" min="0" step="1" placeholder="Bas" value="20" />
+            <input id="cropLeft" type="number" min="0" step="1" placeholder="Gauche" value="20" />
+          </div>
+          <button type="button" data-action="crop">Rogner</button>
+        </article>
+      </div>
+    </section>
+
+    <section class="group">
+      <div class="group-heading">
+        <p class="group-kicker">Securite PDF</p>
+        <h2>Protection, deverrouillage et comparaison</h2>
+      </div>
+
+      <div class="tool-grid compact-grid">
+        <article class="tool-card">
+          <div class="title-row"><h3>Deverrouiller PDF</h3><span class="badge">Nouveau</span></div>
+          <p>Supprime la protection d’un PDF si vous connaissez son mot de passe.</p>
+          <label class="dropzone" data-dropzone="unlockFile">
+            <input id="unlockFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="unlockFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="unlockPassword" type="password" placeholder="Mot de passe PDF" />
+          <button type="button" data-action="unlock">Deverrouiller</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>Proteger PDF</h3><span class="badge">Nouveau</span></div>
+          <p>Ajoutez un mot de passe utilisateur et, si besoin, un mot de passe proprietaire.</p>
+          <label class="dropzone" data-dropzone="protectFile">
+            <input id="protectFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="protectFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="protectUserPassword" type="password" placeholder="Mot de passe utilisateur" />
+          <input id="protectOwnerPassword" type="password" placeholder="Mot de passe proprietaire (optionnel)" />
+          <button type="button" data-action="protect">Proteger</button>
+        </article>
+
+        <article class="tool-card">
+          <div class="title-row"><h3>Comparer PDF</h3><span class="badge">Nouveau</span></div>
+          <p>Genere un rapport JSON des differences de texte et de pagination.</p>
+          <label class="dropzone" data-dropzone="compareFileA">
+            <input id="compareFileA" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Premier PDF</span>
+            <span class="dropzone-meta" data-file-label="compareFileA">Aucun fichier selectionne</span>
+          </label>
+          <label class="dropzone" data-dropzone="compareFileB">
+            <input id="compareFileB" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Second PDF</span>
+            <span class="dropzone-meta" data-file-label="compareFileB">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="compare">Comparer</button>
+        </article>
+      </div>
+    </section>
+
+    <section class="group">
+      <div class="group-heading">
+        <p class="group-kicker">Fonctions hors lot</p>
+        <h2>Prevues, mais non fiables ici sans moteur externe</h2>
+      </div>
+
+      <div class="tool-grid compact-grid">
+        <article class="tool-card coming-soon">
+          <div class="title-row"><h3>Signer PDF</h3><span class="badge muted">Bientot</span></div>
+          <p>Necessite une vraie chaine de signature numerique et certificats.</p>
+        </article>
+        <article class="tool-card">
+          <div class="title-row"><h3>Censurer PDF</h3><span class="badge">Nouveau</span></div>
+          <p>Recherche des termes et les supprime de facon irreversible via reconstruction image.</p>
+          <label class="dropzone" data-dropzone="censorFile">
+            <input id="censorFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez un PDF ici</span>
+            <span class="dropzone-meta" data-file-label="censorFile">Aucun fichier selectionne</span>
+          </label>
+          <input id="censorTerms" type="text" placeholder="Termes a censurer (ex: secret, client, email)" />
+          <label class="checkbox-row">
+            <input id="censorCaseSensitive" type="checkbox" />
+            <span>Sensible a la casse</span>
+          </label>
+          <button type="button" data-action="censor">Censurer</button>
+        </article>
+        <article class="tool-card coming-soon">
+          <div class="title-row"><h3>Generateur de resume par IA</h3><span class="badge muted">Bientot</span></div>
+          <p>Necessite un service de modele et une gestion d’API secure.</p>
+        </article>
+        <article class="tool-card coming-soon">
+          <div class="title-row"><h3>Traduire le PDF</h3><span class="badge muted">Bientot</span></div>
+          <p>Demandera extraction + modele de traduction + reconstruction du document.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

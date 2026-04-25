@@ -1,0 +1,20 @@
+services:
+  nova-pdf-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nova-pdf-backend
+    ports:
+      - "8000:8000"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      TMPDIR: /tmp/nova
+    tmpfs:
+      - /tmp/nova:size=512m,mode=1777
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
