@@ -30,10 +30,13 @@ const API = {
 };
 
 const PAGE_RANGE_PATTERN = /^\s*\d+\s*(?:-\s*\d+\s*)?(?:,\s*\d+\s*(?:-\s*\d+\s*)?)*\s*$/;
+let progressTimer = null;
 
 async function submitForm(action) {
   const form = new FormData();
   setBusy(true);
+  resetProgress();
+  setProgress(5, "Preparation des fichiers");
   setMessage("Traitement en cours...", "info");
 
   try {
@@ -80,7 +83,7 @@ async function submitForm(action) {
         await submitRequest(API.repair, form, "repaired.pdf");
         break;
       case "convert":
-        form.append("file", getRequiredFile("imageFile", "Selectionnez une image."));
+        appendMultipleFiles(form, "files", "imageFile", 1, "Selectionnez au moins une image.");
         await submitRequest(API.convert, form, "converted.pdf");
         break;
       case "word-to-pdf":
@@ -189,26 +192,90 @@ async function submitForm(action) {
     }
   } catch (error) {
     setMessage(error.message || "Erreur inconnue.", "error");
+    setProgress(100, "Echec du traitement");
   } finally {
+    stopProcessingProgress();
     setBusy(false);
   }
 }
 
 async function submitRequest(url, formData, fallbackFilename) {
-  const response = await fetch(url, {
-    method: "POST",
-    body: formData,
-  });
+  const response = await sendFormData(url, formData);
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new Error(error?.detail || "Erreur serveur.");
+  if (response.status < 200 || response.status >= 300) {
+    const error = await parseErrorResponse(response);
+    throw new Error(error || "Erreur serveur.");
   }
 
-  const blob = await response.blob();
-  const filename = getDownloadFilename(response.headers.get("Content-Disposition")) || fallbackFilename;
-  downloadBlob(blob, filename);
+  setProgress(96, "Preparation du telechargement");
+  const filename = getDownloadFilename(response.contentDisposition) || fallbackFilename;
+  downloadBlob(response.blob, filename);
+  setProgress(100, "Termine");
   setMessage(`Telechargement lance : ${filename}`, "success");
+}
+
+function sendFormData(url, formData) {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", url);
+    request.responseType = "blob";
+
+    request.upload.addEventListener("progress", (event) => {
+      if (!event.lengthComputable) {
+        setProgress(22, "Envoi des fichiers");
+        return;
+      }
+      const uploadPercent = Math.round((event.loaded / event.total) * 35);
+      setProgress(Math.max(10, Math.min(45, uploadPercent + 10)), "Envoi des fichiers");
+    });
+
+    request.upload.addEventListener("load", () => {
+      setProgress(48, "Traitement serveur");
+      startProcessingProgress();
+    });
+
+    request.addEventListener("load", () => {
+      resolve({
+        blob: request.response,
+        contentDisposition: request.getResponseHeader("Content-Disposition"),
+        status: request.status,
+      });
+    });
+
+    request.addEventListener("error", () => reject(new Error("Connexion au serveur impossible.")));
+    request.addEventListener("abort", () => reject(new Error("Traitement interrompu.")));
+    request.send(formData);
+  });
+}
+
+function startProcessingProgress() {
+  stopProcessingProgress();
+  progressTimer = window.setInterval(() => {
+    const current = getProgressValue();
+    if (current < 92) {
+      setProgress(current + Math.max(1, Math.round((92 - current) * 0.08)), "Traitement serveur");
+    }
+  }, 700);
+}
+
+function stopProcessingProgress() {
+  if (progressTimer) {
+    window.clearInterval(progressTimer);
+    progressTimer = null;
+  }
+}
+
+async function parseErrorResponse(response) {
+  if (!(response.blob instanceof Blob) || !response.blob.size) {
+    return null;
+  }
+  const text = await response.blob.text();
+  try {
+    const payload = JSON.parse(text);
+    return payload?.detail || text;
+  } catch (_) {
+    return text;
+  }
 }
 
 function appendMultipleFiles(form, fieldName, inputId, minCount, errorMessage) {
@@ -258,6 +325,10 @@ function getDownloadFilename(contentDisposition) {
   if (!contentDisposition) {
     return null;
   }
+  const encodedMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (encodedMatch) {
+    return decodeURIComponent(encodedMatch[1]);
+  }
   const match = contentDisposition.match(/filename="?([^"]+)"?/i);
   return match ? match[1] : null;
 }
@@ -277,6 +348,35 @@ function setMessage(text, type = "info") {
   const message = document.getElementById("message");
   message.textContent = text;
   message.className = type;
+}
+
+function resetProgress() {
+  stopProcessingProgress();
+  setProgress(0, "Preparation");
+}
+
+function getProgressValue() {
+  const progressTrack = document.querySelector(".progress-track");
+  return Number(progressTrack?.getAttribute("aria-valuenow") || "0");
+}
+
+function setProgress(value, label) {
+  const progressPanel = document.getElementById("progressPanel");
+  const progressTrack = document.querySelector(".progress-track");
+  const progressBar = document.getElementById("progressBar");
+  const progressLabel = document.getElementById("progressLabel");
+  const progressValue = document.getElementById("progressValue");
+
+  if (!progressPanel || !progressTrack || !progressBar || !progressLabel || !progressValue) {
+    return;
+  }
+
+  const nextValue = Math.max(0, Math.min(100, Math.round(value)));
+  progressPanel.hidden = false;
+  progressTrack.setAttribute("aria-valuenow", String(nextValue));
+  progressBar.style.width = `${nextValue}%`;
+  progressLabel.textContent = label;
+  progressValue.textContent = `${nextValue}%`;
 }
 
 function setBusy(isBusy) {

@@ -33,3 +33,55 @@
 - Deploiement: image Docker non-root, rollback, healthcheck, stockage temporaire borne.
 - IA: absence de cle API, timeout provider, donnees sensibles envoyees au provider, fallback local documente.
 - Signature: ne pas presenter la signature visible comme signature cryptographique certifiee.
+---
+
+## 🚨 NEW BUGS DETECTED - AUTO-PIPELINE RESCUE (2026-05-04)
+
+### P0: Fuite fichiers temporaires en cas d'erreur - ✅ FIXÉ (2026-05-07)
+- **Cause racine:** `save_upload_file()` créait tmpfile sans cleanup garanti hors bloc success.
+- **Correction:** Implémentation de `managed_upload_file` (Context Manager) généralisé dans `main.py`. Suppression garantie via `finally`.
+- **Test ajoute:** `test_temp_cleanup_on_error` (validé par structure).
+- **Lecon:** Le cycle de vie des ressources temporaires doit être géré par l'appelant (API) via context manager.
+
+### P0: XSS en Content-Disposition header - ✅ FIXÉ (2026-05-07)
+- **Cause racine:** Nom de fichier non échappé.
+- **Correction:** Utilisation de `urllib.parse.quote()` et format `filename*=UTF-8''` (RFC 5987). Ajout de headers de sécurité (NoSniff, Frame-Deny).
+- **Test ajoute:** `test_filename_xss_protection`.
+
+### P0: CORS misconfiguration - wildcard exposure - ✅ FIXÉ (2026-05-07)
+- **Cause racine:** Origins non validées.
+- **Correction:** Whitelist explicite sur `localhost` et `127.0.0.1`. Restriction aux méthodes `POST` pour l'API.
+- **Lecon:** Ne jamais utiliser wildcard en production.
+
+### P1: Validation insuffisante sur opacity (watermark) - ✅ FIXÉ (2026-05-07)
+- **Correction:** Ajout d'une vérification `0 < opacity <= 1` dans l'endpoint FastAPI.
+
+
+### P1: Traduction locale est un stub non-fonctionnel
+- **Cause racine:** Dictionnaire 8 mots hardcodé, fallback inutile.
+- **Correction:** Rendre feature optionnel (error si pas OpenAI). Ou améliorer locale translation.
+- **Lecon:** IA features optionnelles doivent avoir fallback TEST ou être disabled.
+
+### P1: Pas de limite sur fusion PDF (merge OOM attack)
+- **Cause racine:** Merge accepte N fichiers sans limite. 100 * 50MB = 5GB RAM.
+- **Correction:** Limiter à 20 fichiers ou 500MB total via `NOVA_MAX_MERGE_FILES` env var.
+- **Test ajoute:** `test_merge_file_count_limit`.
+- **Lecon:** Opérations accumulatives (merge, concatenate) doivent avoir limites explicites.
+
+### P1: Race condition tempfiles (uuid collisions possibles)
+- **Cause racine:** `tempfile.NamedTemporaryFile()` sans namespace. Concurrent requests peuvent créer même nom.
+- **Correction:** Utiliser uuid4().hex + suffix, stocké dans isolated tmpdir (/tmp/nova/{uuid}).
+- **Lecon:** Tempfiles doivent utiliser uuid + isolated namespace, JAMAIS compteur séquentiel.
+
+## 📊 WATCHLIST ENRICHIE
+
+- **Fichiers temporaires:** ✅ Ajouter context manager requirement + uuid namespace
+- **Headers HTTP:** ✅ Audit tous Content-Disposition, Set-Cookie, Location pour injections
+- **CORS:** ✅ Jamais wildcard. Toujours whitelist explicite.
+- **Form validation:** ✅ TOUS les Form() params doivent avoir bounds/range checks
+- **AI features:** ✅ Si optionnel: fallback OR error, jamais silent stub
+- **Opérations accumulatives:** ✅ Merge/concatenate/loops TOUJOURS limités
+- **Test coverage:** ✅ Besoin 80%+ minimum. CI doit échouer < 75%.
+- **Security gates:** ✅ P0 bugs = NO GO systématique. Non négociable.
+- **Resource limits:** ✅ Tous les containers doivent avoir mem/cpu limits.
+- **Non-root:** ✅ Jamais run service as root dans Docker.

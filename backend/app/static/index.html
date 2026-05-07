@@ -26,6 +26,15 @@
       <h2>Statut</h2>
       <p class="status-caption">Les cartes avec le badge `Beta` utilisent un rendu simplifie base sur le contenu extrait.</p>
       <div id="message" class="info">Pret.</div>
+      <div id="progressPanel" class="progress-panel" hidden>
+        <div class="progress-row">
+          <span id="progressLabel">Preparation</span>
+          <span id="progressValue">0%</span>
+        </div>
+        <div class="progress-track" role="progressbar" aria-labelledby="progressLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+      </div>
     </aside>
   </header>
 
@@ -148,11 +157,11 @@
 
       <div class="tool-grid">
         <article class="tool-card">
-          <h3>JPG en PDF</h3>
-          <p>Convertissez une image en document PDF.</p>
+          <h3>Images en PDF</h3>
+          <p>Convertissez une ou plusieurs images en PDF multipage.</p>
           <label class="dropzone" data-dropzone="imageFile">
-            <input id="imageFile" class="file-input" type="file" accept="image/*" />
-            <span class="dropzone-title">Glissez une image ici</span>
+            <input id="imageFile" class="file-input" type="file" multiple accept="image/*" />
+            <span class="dropzone-title">Glissez des images ici</span>
             <span class="dropzone-meta" data-file-label="imageFile">Aucun fichier selectionne</span>
           </label>
           <button type="button" data-action="convert">Convertir</button>

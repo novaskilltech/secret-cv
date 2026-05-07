@@ -3,15 +3,16 @@ import json
 import os
 import subprocess
 import shutil
-import tempfile
 import textwrap
 import urllib.error
 import urllib.request
 import zipfile
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Iterable, List, Optional
+from uuid import uuid4
 
 import pdfplumber
 import pikepdf
@@ -55,17 +56,40 @@ PAGE_NUMBER_POSITIONS = {
     "bottom-right",
 }
 MAX_UPLOAD_BYTES = int(os.getenv("NOVA_MAX_UPLOAD_BYTES", str(50 * 1024 * 1024)))
+MAX_MERGE_FILES = int(os.getenv("NOVA_MAX_MERGE_FILES", "20"))
+MAX_MERGE_TOTAL_BYTES = int(os.getenv("NOVA_MAX_MERGE_TOTAL_BYTES", str(500 * 1024 * 1024)))
 COMMAND_TIMEOUT_SECONDS = int(os.getenv("NOVA_COMMAND_TIMEOUT_SECONDS", "120"))
 COPY_CHUNK_BYTES = 1024 * 1024
 AI_MAX_INPUT_CHARS = int(os.getenv("NOVA_AI_MAX_INPUT_CHARS", "24000"))
 AI_TIMEOUT_SECONDS = int(os.getenv("NOVA_AI_TIMEOUT_SECONDS", "45"))
 AI_MODEL = os.getenv("NOVA_AI_MODEL", "gpt-4o-mini")
+AI_EXTERNAL_ENABLED = os.getenv("NOVA_AI_EXTERNAL_ENABLED", "false").casefold() in {"1", "true", "yes", "on"}
 SIGNATURE_POSITIONS = {
     "bottom-left",
     "bottom-right",
     "top-left",
     "top-right",
 }
+
+# Temporary file management - P0.1 security fix
+TEMP_DIR = Path(os.getenv("TMPDIR", "/tmp/nova"))
+TEMP_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+MAX_TEMP_FILES = int(os.getenv("NOVA_MAX_TEMP_FILES", "1000"))
+
+
+def _enforce_temp_file_limit():
+    try:
+        temp_file_count = sum(1 for path in TEMP_DIR.iterdir() if path.is_file())
+    except FileNotFoundError:
+        TEMP_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+        temp_file_count = 0
+    if temp_file_count >= MAX_TEMP_FILES:
+        raise ValueError("Trop de fichiers temporaires sont deja en attente. Reessayez plus tard.")
+
+
+def _new_temp_path(suffix: str = "") -> Path:
+    _enforce_temp_file_limit()
+    return TEMP_DIR / f"{uuid4().hex}{suffix}"
 
 
 class _HTMLTextExtractor(HTMLParser):
@@ -121,7 +145,8 @@ def _convert_with_libreoffice(source_path: Path) -> Optional[bytes]:
     if not soffice:
         return None
 
-    output_dir = Path(tempfile.mkdtemp())
+    output_dir = _new_temp_path()
+    output_dir.mkdir(parents=True, exist_ok=False)
     try:
         try:
             command = [
@@ -149,8 +174,8 @@ def _ocr_with_ocrmypdf(source_path: Path, languages: str) -> Optional[bytes]:
     if not ocrmypdf:
         return None
 
-    output_pdf = Path(tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name)
-    sidecar_txt = Path(tempfile.NamedTemporaryFile(delete=False, suffix=".txt").name)
+    output_pdf = _new_temp_path(".pdf")
+    sidecar_txt = _new_temp_path(".txt")
     try:
         try:
             command = [
@@ -182,30 +207,55 @@ def _ocr_with_ocrmypdf(source_path: Path, languages: str) -> Optional[bytes]:
 
 
 def save_upload_file(upload_file) -> Path:
+    """Save upload file with security: uuid namespace, size limit, guaranteed cleanup."""
+    # Support both UploadFile and already saved Path objects for refactor flexibility
+    if isinstance(upload_file, Path):
+        return upload_file
+
     if not getattr(upload_file, "filename", None):
         raise ValueError("Aucun fichier n'a ete fourni.")
+
 
     suffix = Path(upload_file.filename).suffix.lower() or ".pdf"
     if suffix not in TEMP_SUFFIXES:
         suffix = ".pdf"
 
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    # Use uuid to avoid collisions and ensure uniqueness
+    tmp_path = _new_temp_path(suffix)
+    
     upload_file.file.seek(0)
-    with tmp:
-        copied = 0
-        while True:
-            chunk = upload_file.file.read(COPY_CHUNK_BYTES)
-            if not chunk:
-                break
-            copied += len(chunk)
-            if copied > MAX_UPLOAD_BYTES:
-                tmp.close()
-                Path(tmp.name).unlink(missing_ok=True)
-                raise ValueError(
-                    f"Le fichier depasse la limite autorisee de {MAX_UPLOAD_BYTES // (1024 * 1024)} Mo."
-                )
-            tmp.write(chunk)
-    return Path(tmp.name)
+    try:
+        with open(tmp_path, 'wb') as tmp:
+            copied = 0
+            while True:
+                chunk = upload_file.file.read(COPY_CHUNK_BYTES)
+                if not chunk:
+                    break
+                copied += len(chunk)
+                if copied > MAX_UPLOAD_BYTES:
+                    tmp_path.unlink(missing_ok=True)
+                    raise ValueError(
+                        f"Le fichier depasse la limite autorisee de {MAX_UPLOAD_BYTES // (1024 * 1024)} Mo."
+                    )
+                tmp.write(chunk)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+    
+    return tmp_path
+
+
+@contextmanager
+def managed_upload_file(upload_file):
+    """Context manager for upload files - guarantees cleanup on error."""
+    path = save_upload_file(upload_file)
+    try:
+        yield path
+    finally:
+        try:
+            path.unlink()
+        except Exception:
+            pass
 
 
 def cleanup(paths: Iterable[Path]):
@@ -518,6 +568,8 @@ def _extract_full_pdf_text(source_path: Path) -> str:
 
 
 def _call_openai_text(system_prompt: str, user_prompt: str) -> Optional[str]:
+    if not AI_EXTERNAL_ENABLED:
+        return None
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None
@@ -618,13 +670,22 @@ def _local_translate_text(text: str, target_language: str) -> str:
 def merge_pdfs(files: List) -> bytes:
     if len(files) < 2:
         raise ValueError("Au moins deux fichiers PDF sont necessaires pour fusionner.")
+    if len(files) > MAX_MERGE_FILES:
+        raise ValueError(f"La fusion est limitee a {MAX_MERGE_FILES} fichiers PDF.")
 
     writer = PdfWriter()
     temp_paths = []
+    total_bytes = 0
     try:
         for uploaded in files:
             path = save_upload_file(uploaded)
             temp_paths.append(path)
+            total_bytes += path.stat().st_size
+            if total_bytes > MAX_MERGE_TOTAL_BYTES:
+                raise ValueError(
+                    f"La taille totale de fusion depasse la limite autorisee de "
+                    f"{MAX_MERGE_TOTAL_BYTES // (1024 * 1024)} Mo."
+                )
             reader = _load_pdf_reader(path)
             for page in reader.pages:
                 writer.add_page(page)
@@ -699,7 +760,7 @@ def crop_pdf(file, top: float = 0, right: float = 0, bottom: float = 0, left: fl
 
 def compress_pdf(file) -> bytes:
     source_path = save_upload_file(file)
-    compressed_path = Path(tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name)
+    compressed_path = _new_temp_path(".pdf")
     try:
         with pikepdf.open(source_path) as pdf:
             pdf.save(
@@ -717,7 +778,7 @@ def compress_pdf(file) -> bytes:
 
 def repair_pdf(file) -> bytes:
     source_path = save_upload_file(file)
-    repaired_path = Path(tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name)
+    repaired_path = _new_temp_path(".pdf")
     try:
         with pikepdf.open(source_path, allow_overwriting_input=True) as pdf:
             pdf.save(repaired_path, fix_metadata_version=True, compress_streams=True)
@@ -728,24 +789,47 @@ def repair_pdf(file) -> bytes:
         cleanup([source_path, repaired_path])
 
 
-def image_to_pdf(file) -> bytes:
-    source_path = save_upload_file(file)
+def _normalize_image_for_pdf(image: Image.Image) -> Image.Image:
+    if image.mode in ("RGBA", "LA"):
+        background = Image.new("RGB", image.size, (255, 255, 255))
+        background.paste(image, mask=image.split()[-1])
+        return background
+    if image.mode != "RGB":
+        return image.convert("RGB")
+    return image.copy()
+
+
+def image_to_pdf(files) -> bytes:
+    selected_files = files if isinstance(files, list) else [files]
+    if not selected_files:
+        raise ValueError("Selectionnez au moins une image.")
+
+    source_paths = []
+    images: List[Image.Image] = []
     try:
-        image = Image.open(source_path)
+        for file in selected_files:
+            source_path = save_upload_file(file)
+            source_paths.append(source_path)
+            with Image.open(source_path) as image:
+                images.append(_normalize_image_for_pdf(image))
+
+        if not images:
+            raise ValueError("Selectionnez au moins une image.")
+
         output = io.BytesIO()
-        if image.mode in ("RGBA", "LA"):
-            background = Image.new("RGB", image.size, (255, 255, 255))
-            background.paste(image, mask=image.split()[-1])
-            image = background
-        elif image.mode != "RGB":
-            image = image.convert("RGB")
-        image.save(output, format="PDF")
+        first_image, *additional_images = images
+        first_image.save(output, format="PDF", save_all=True, append_images=additional_images)
         output.seek(0)
         return output.read()
     except UnidentifiedImageError as exc:
-        raise ValueError("Le fichier image est invalide ou n'est pas supporte.") from exc
+        raise ValueError("Un des fichiers image est invalide ou n'est pas supporte.") from exc
     finally:
-        cleanup([source_path])
+        for image in images:
+            try:
+                image.close()
+            except Exception:
+                pass
+        cleanup(source_paths)
 
 
 def delete_pdf_pages(file, pages: str) -> bytes:
@@ -1092,7 +1176,7 @@ def protect_pdf(file, user_password: str, owner_password: Optional[str] = None) 
         raise ValueError("Le mot de passe utilisateur est obligatoire.")
 
     source_path = save_upload_file(file)
-    protected_path = Path(tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name)
+    protected_path = _new_temp_path(".pdf")
     try:
         with pikepdf.open(source_path) as pdf:
             pdf.save(
@@ -1115,7 +1199,7 @@ def unlock_pdf(file, password: str) -> bytes:
         raise ValueError("Le mot de passe de deverrouillage est obligatoire.")
 
     source_path = save_upload_file(file)
-    unlocked_path = Path(tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name)
+    unlocked_path = _new_temp_path(".pdf")
     try:
         with pikepdf.open(source_path, password=password) as pdf:
             pdf.save(unlocked_path)

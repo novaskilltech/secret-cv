@@ -24,7 +24,7 @@ Prototype open-source d'un editeur PDF web inspire de ilovepdf.com.
 - OCR / extraction texte native: `POST /api/ocr`
 
 ### Convertir en PDF
-- Image vers PDF: `POST /api/convert/image-to-pdf`
+- Image(s) vers PDF: `POST /api/convert/image-to-pdf`
 - HTML vers PDF: `POST /api/convert/html-to-pdf`
 - Word vers PDF: `POST /api/convert/word-to-pdf`
 - Excel vers PDF: `POST /api/convert/excel-to-pdf`
@@ -64,7 +64,7 @@ Prototype open-source d'un editeur PDF web inspire de ilovepdf.com.
 - Si `OCRmyPDF` n'est pas disponible ou echoue, la route retombe sur l'extraction de texte native du PDF.
 - `Censurer PDF` est maintenant disponible en mode irreversible par rasterisation des pages touchees et reconstruction du PDF.
 - `Signer PDF` ajoute une signature visible sur les pages. Ce n'est pas une signature cryptographique certifiee.
-- Resume IA et traduction IA utilisent `OPENAI_API_KEY` si la variable est configuree.
+- Resume IA et traduction IA utilisent `OPENAI_API_KEY` uniquement si `NOVA_AI_EXTERNAL_ENABLED=true` est aussi configure.
 - Sans `OPENAI_API_KEY`, le backend utilise un fallback local deterministe: resume extractif et traduction locale simplifiee.
 - Signature numerique certifiee avec certificats n'est pas encore livree.
 

@@ -1,9 +1,12 @@
 import io
 import json
+import tempfile
 import unittest
 import zipfile
+from pathlib import Path
 from unittest.mock import patch
 
+import pdf_utils
 from docx import Document
 from fastapi.testclient import TestClient
 from openpyxl import Workbook
@@ -216,6 +219,17 @@ class NovaPdfEndpointsTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(pdf_reader_from_bytes(response.content).pages), 1)
 
+    def test_multiple_images_to_pdf_endpoint(self):
+        response = self.client.post(
+            "/api/convert/image-to-pdf",
+            files=[
+                ("files", ("first.png", self.sample_png, "image/png")),
+                ("files", ("second.png", self.sample_png, "image/png")),
+            ],
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(pdf_reader_from_bytes(response.content).pages), 2)
+
     def test_html_to_pdf_endpoint(self):
         response = self.client.post(
             "/api/convert/html-to-pdf",
@@ -287,7 +301,7 @@ class NovaPdfEndpointsTest(unittest.TestCase):
         redacted_text = pdf_reader_from_bytes(response.content).pages[0].extract_text() or ""
         self.assertNotIn("SECRET", redacted_text)
 
-    def test_sign_endpoint(self):
+    def test_sign_endpoint_accepts_all_fields(self):
         response = self.client.post(
             "/api/sign",
             files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
@@ -336,6 +350,302 @@ class NovaPdfEndpointsTest(unittest.TestCase):
             )
         self.assertEqual(response.status_code, 400)
         self.assertIn("depasse la limite", response.json()["detail"])
+
+    def test_temp_file_limit_returns_400(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch("pdf_utils.TEMP_DIR", Path(temp_dir)), patch("pdf_utils.MAX_TEMP_FILES", 0):
+                response = self.client.post(
+                    "/api/compress",
+                    files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+                )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Trop de fichiers temporaires", response.json()["detail"])
+
+    def test_openai_call_disabled_without_explicit_opt_in(self):
+        with patch("pdf_utils.AI_EXTERNAL_ENABLED", False), patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
+            with patch("pdf_utils.urllib.request.urlopen") as urlopen:
+                self.assertIsNone(pdf_utils._call_openai_text("system", "user"))
+        urlopen.assert_not_called()
+
+    def test_merge_file_count_limit_returns_400(self):
+        with patch("pdf_utils.MAX_MERGE_FILES", 2):
+            response = self.client.post(
+                "/api/merge",
+                files=[
+                    ("files", ("first.pdf", self.sample_pdf, "application/pdf")),
+                    ("files", ("second.pdf", self.second_pdf, "application/pdf")),
+                    ("files", ("third.pdf", self.second_pdf, "application/pdf")),
+                ],
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("limitee", response.json()["detail"])
+
+    def test_merge_total_size_limit_returns_400(self):
+        with patch("pdf_utils.MAX_MERGE_TOTAL_BYTES", len(self.sample_pdf)):
+            response = self.client.post(
+                "/api/merge",
+                files=[
+                    ("files", ("first.pdf", self.sample_pdf, "application/pdf")),
+                    ("files", ("second.pdf", self.second_pdf, "application/pdf")),
+                ],
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("taille totale", response.json()["detail"])
+
+    # === NEW TESTS FOR P0/P1 FIXES AND MISSING ENDPOINTS ===
+
+    def test_watermark_invalid_opacity_low(self):
+        """P1.3: Test opacity validation - too low"""
+        response = self.client.post(
+            "/api/watermark",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"text": "TEST", "opacity": "-0.5"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("opacity", response.json()["detail"])
+
+    def test_watermark_invalid_opacity_high(self):
+        """P1.3: Test opacity validation - too high"""
+        response = self.client.post(
+            "/api/watermark",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"text": "TEST", "opacity": "2.5"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("opacity", response.json()["detail"])
+
+    def test_watermark_valid_opacity_boundaries(self):
+        """P1.3: Test valid opacity values at boundaries"""
+        # Test opacity=0.001 (valid, > 0)
+        response = self.client.post(
+            "/api/watermark",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"text": "TEST", "opacity": "0.001"},
+        )
+        self.assertEqual(response.status_code, 200)
+        
+        # Test opacity=1.0 (valid, <= 1)
+        response = self.client.post(
+            "/api/watermark",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"text": "TEST", "opacity": "1.0"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_filename_xss_protection(self):
+        """P0.2: Test XSS prevention in Content-Disposition header"""
+        response = self.client.post(
+            "/api/merge",
+            files=[
+                ("files", ("first.pdf", self.sample_pdf, "application/pdf")),
+                ("files", ("second.pdf", self.second_pdf, "application/pdf")),
+            ],
+        )
+        self.assertEqual(response.status_code, 200)
+        content_disposition = response.headers.get("Content-Disposition", "")
+        # Should NOT contain unescaped quotes or script tags
+        self.assertNotIn("<script>", content_disposition)
+        self.assertIn("filename*=UTF-8", content_disposition)
+
+    def test_sign_endpoint(self):
+        """Missing endpoint test: /api/sign"""
+        response = self.client.post(
+            "/api/sign",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={
+                "signer_name": "John Doe",
+                "reason": "Approval",
+                "location": "Office",
+                "position": "bottom-right",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        reader = pdf_reader_from_bytes(response.content)
+        self.assertGreater(len(reader.pages), 0)
+
+    def test_compare_endpoint_returns_json_report(self):
+        """Missing endpoint test: /api/compare"""
+        response = self.client.post(
+            "/api/compare",
+            files=[
+                ("file_a", ("first.pdf", self.sample_pdf, "application/pdf")),
+                ("file_b", ("second.pdf", self.second_pdf, "application/pdf")),
+            ],
+        )
+        self.assertEqual(response.status_code, 200)
+        result = json.loads(response.content)
+        self.assertIsInstance(result, dict)
+
+    def test_censor_endpoint_accepts_multiple_terms(self):
+        """Missing endpoint test: /api/censor"""
+        response = self.client.post(
+            "/api/censor",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"terms": "Test,NOVA", "case_sensitive": "false"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(pdf_reader_from_bytes(response.content).pages), 3)
+
+    def test_censor_no_matches_returns_400(self):
+        """Test censor with no matching terms"""
+        response = self.client.post(
+            "/api/censor",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"terms": "XYZABC123", "case_sensitive": "false"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("occurrence", response.json()["detail"])
+
+    def test_protect_endpoint(self):
+        """Missing endpoint test: /api/protect"""
+        response = self.client.post(
+            "/api/protect",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"user_password": "secret123", "owner_password": "owner456"},
+        )
+        self.assertEqual(response.status_code, 200)
+        reader = pdf_reader_from_bytes(response.content)
+        self.assertTrue(reader.is_encrypted)
+
+    def test_unlock_endpoint(self):
+        """Missing endpoint test: /api/unlock"""
+        # First protect a PDF
+        protect_response = self.client.post(
+            "/api/protect",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"user_password": "secret123"},
+        )
+        self.assertEqual(protect_response.status_code, 200)
+        
+        # Then unlock it
+        unlock_response = self.client.post(
+            "/api/unlock",
+            files={"file": ("protected.pdf", protect_response.content, "application/pdf")},
+            data={"password": "secret123"},
+        )
+        self.assertEqual(unlock_response.status_code, 200)
+
+    def test_ocr_endpoint(self):
+        """Test /api/ocr endpoint"""
+        response = self.client.post(
+            "/api/ocr",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+        )
+        self.assertEqual(response.status_code, 200)
+        text = response.content.decode("utf-8")
+        self.assertIn("Test Page", text)
+
+    def test_rotate_endpoint(self):
+        """Test /api/rotate endpoint"""
+        response = self.client.post(
+            "/api/rotate",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"angle": "90", "pages": "1,2"},
+        )
+        self.assertEqual(response.status_code, 200)
+        reader = pdf_reader_from_bytes(response.content)
+        self.assertEqual(len(reader.pages), 3)
+
+    def test_rotate_invalid_angle_returns_400(self):
+        """Test rotate with invalid angle (not multiple of 90)"""
+        response = self.client.post(
+            "/api/rotate",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"angle": "45"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("multiple de 90", response.json()["detail"])
+
+    def test_delete_endpoint(self):
+        """Test /api/delete endpoint"""
+        response = self.client.post(
+            "/api/delete",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+            data={"pages": "2"},
+        )
+        self.assertEqual(response.status_code, 200)
+        reader = pdf_reader_from_bytes(response.content)
+        self.assertEqual(len(reader.pages), 2)
+
+    def test_compress_endpoint(self):
+        """Test /api/compress endpoint"""
+        response = self.client.post(
+            "/api/compress",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+        )
+        self.assertEqual(response.status_code, 200)
+        reader = pdf_reader_from_bytes(response.content)
+        self.assertGreater(len(reader.pages), 0)
+
+    def test_repair_endpoint_returns_readable_pdf(self):
+        """Test /api/repair endpoint"""
+        response = self.client.post(
+            "/api/repair",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+        )
+        self.assertEqual(response.status_code, 200)
+        reader = pdf_reader_from_bytes(response.content)
+        self.assertGreater(len(reader.pages), 0)
+
+    def test_image_to_pdf_endpoint_accepts_image_filename(self):
+        """Test /api/convert/image-to-pdf endpoint"""
+        response = self.client.post(
+            "/api/convert/image-to-pdf",
+            files={"file": ("image.png", self.sample_png, "image/png")},
+        )
+        self.assertEqual(response.status_code, 200)
+        reader = pdf_reader_from_bytes(response.content)
+        self.assertEqual(len(reader.pages), 1)
+
+    def test_word_to_pdf_endpoint_returns_readable_pdf(self):
+        """Test /api/convert/word-to-pdf endpoint"""
+        response = self.client.post(
+            "/api/convert/word-to-pdf",
+            files={"file": ("document.docx", self.sample_docx, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        self.assertEqual(response.status_code, 200)
+        reader = pdf_reader_from_bytes(response.content)
+        self.assertGreater(len(reader.pages), 0)
+
+    def test_excel_to_pdf_endpoint_returns_readable_pdf(self):
+        """Test /api/convert/excel-to-pdf endpoint"""
+        response = self.client.post(
+            "/api/convert/excel-to-pdf",
+            files={"file": ("spreadsheet.xlsx", self.sample_xlsx, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        )
+        self.assertEqual(response.status_code, 200)
+        reader = pdf_reader_from_bytes(response.content)
+        self.assertGreater(len(reader.pages), 0)
+
+    def test_powerpoint_to_pdf_endpoint_returns_readable_pdf(self):
+        """Test /api/convert/powerpoint-to-pdf endpoint"""
+        response = self.client.post(
+            "/api/convert/powerpoint-to-pdf",
+            files={"file": ("presentation.pptx", self.sample_pptx, "application/vnd.openxmlformats-officedocument.presentationml.presentation")},
+        )
+        self.assertEqual(response.status_code, 200)
+        reader = pdf_reader_from_bytes(response.content)
+        self.assertGreater(len(reader.pages), 0)
+
+    def test_html_to_pdf_endpoint_returns_readable_pdf(self):
+        """Test /api/convert/html-to-pdf endpoint"""
+        response = self.client.post(
+            "/api/convert/html-to-pdf",
+            files={"file": ("page.html", self.sample_html, "text/html")},
+        )
+        self.assertEqual(response.status_code, 200)
+        reader = pdf_reader_from_bytes(response.content)
+        self.assertGreater(len(reader.pages), 0)
+
+    def test_pdf_to_powerpoint_endpoint(self):
+        """Test /api/pdf-to-powerpoint endpoint"""
+        response = self.client.post(
+            "/api/pdf-to-powerpoint",
+            files={"file": ("sample.pdf", self.sample_pdf, "application/pdf")},
+        )
+        self.assertEqual(response.status_code, 200)
+        presentation = Presentation(io.BytesIO(response.content))
+        self.assertGreater(len(presentation.slides), 0)
 
 
 if __name__ == "__main__":
