@@ -1076,14 +1076,21 @@ def censor_pdf(file, terms: str, case_sensitive: bool = False) -> bytes:
                     page_redacted = True
 
                 # Censure des images (Photos, logos, etc.)
-                for img in getattr(page, "images", []):
+                # On cherche dans images et figures pour etre exhaustif
+                image_objects = []
+                image_objects.extend(getattr(page, "images", []))
+                image_objects.extend(getattr(page, "figures", []))
+                
+                for img in image_objects:
                     try:
                         x0 = max(0, int(float(img["x0"]) * scale_x) - 1)
                         y0 = max(0, int(float(img["top"]) * scale_y) - 1)
                         x1 = min(image.width, int(float(img["x1"]) * scale_x) + 1)
                         y1 = min(image.height, int(float(img["bottom"]) * scale_y) + 1)
-                        draw.rectangle([x0, y0, x1, y1], fill="black")
-                        page_redacted = True
+                        # On evite de masquer toute la page par erreur (securite)
+                        if (x1 - x0) < image.width * 0.9 or (y1 - y0) < image.height * 0.9:
+                            draw.rectangle([x0, y0, x1, y1], fill="black")
+                            page_redacted = True
                     except (KeyError, TypeError, ValueError):
                         continue
 
@@ -1387,10 +1394,9 @@ def anonymize_pdf(file) -> bytes:
         # Patterns de detection robustes
         patterns = {
             "email": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+",
-            "phone": r"(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}", # Format FR
-            "phone_intl": r"\+?\d{1,4}[\s.-]?\(?\d{1,4}\)?[\s.-]?\d{1,4}[\s.-]?\d{1,4}[\s.-]?\d{1,4}", # Intl
+            "phone": r"(?:\+?\d{1,4}[\s.-]?)?\(?\d{1,4}\)?(?:[\s.-]?\d{2,4}){2,5}", # Format Global
             "linkedin": r"(?:https?://)?(?:www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+/?",
-            "zip": r"\b\d{5}\b", # Code postal FR
+            "zip": r"\b\d{5}\b", # Code postal
         }
         
         terms_to_censor = set()
@@ -1398,36 +1404,44 @@ def anonymize_pdf(file) -> bytes:
         # Detection via regex
         for p_name, p_regex in patterns.items():
             matches = re.findall(p_regex, text)
-            terms_to_censor.update(matches)
+            for m in matches:
+                if len(m.strip()) > 5: # Evite les faux positifs trop courts
+                    terms_to_censor.add(m.strip())
         
         # Detection des noms et prenoms (Heuristique d'entete)
         page_texts = _extract_pdf_text_by_page(source_path)
         if page_texts:
             # On analyse les 5 premieres lignes de la premiere page
             first_page_lines = [l.strip() for l in page_texts[0].splitlines() if l.strip()]
-            for i in range(min(5, len(first_page_lines))):
+            for i in range(min(6, len(first_page_lines))):
                 line = first_page_lines[i]
-                # Si la ligne est courte et ne contient pas que des chiffres/ponctuation
-                if 3 < len(line) < 50 and any(c.isalpha() for c in line):
-                    # On evite de censurer des titres generiques comme "CURRICULUM VITAE"
-                    if line.upper() not in ["CURRICULUM VITAE", "CV", "RESUME", "EXPERIENCES", "FORMATION"]:
+                # Detection de prefixes de courtoisie ou structure Nom
+                if any(prefix in line for prefix in ["M.", "Mme", "Mr", "Monsieur", "Madame"]):
+                    # On ajoute la ligne entiere et chaque mot separément pour etre sur
+                    terms_to_censor.add(line)
+                    for word in line.split():
+                        if len(word) > 2: terms_to_censor.add(word)
+                
+                # Si la ligne est courte et semble etre un nom (Majuscules)
+                if 3 < len(line) < 40 and any(c.isalpha() for c in line):
+                    if line.upper() not in ["CURRICULUM VITAE", "CV", "RESUME", "EXPERIENCES", "FORMATION", "PARCOURS"]:
                         terms_to_censor.add(line)
+                        # Ajout des composants du nom
+                        for part in line.split():
+                            if len(part) > 2: terms_to_censor.add(part)
 
         # On nettoie les termes vides ou trop courts
-        final_terms_list = [t for t in terms_to_censor if len(t.strip()) > 2]
+        final_terms_list = [t for t in terms_to_censor if len(str(t).strip()) > 2]
         
         if not final_terms_list:
-            # Fallback de securite
+            # Fallback minimal
             return censor_pdf(source_path, "email, @, linkedin")
 
         # Conversion en chaine pour censor_pdf
         final_terms = ",".join(final_terms_list)
         
-        # Appel de censor_pdf (qui gere maintenant aussi le masquage des images/photos)
+        # Appel de censor_pdf (qui gere maintenant images + figures)
         return censor_pdf(source_path, final_terms)
-
-    finally:
-        cleanup([source_path])
 
     finally:
         cleanup([source_path])
