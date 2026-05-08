@@ -7,6 +7,7 @@ import textwrap
 import urllib.error
 import urllib.request
 import zipfile
+import re
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -1048,35 +1049,43 @@ def censor_pdf(file, terms: str, case_sensitive: bool = False) -> bytes:
                 if page_index >= len(images):
                     break
 
-                words = page.extract_words() or []
                 image = images[page_index]
                 draw = ImageDraw.Draw(image)
                 scale_x = image.width / float(page.width or image.width)
                 scale_y = image.height / float(page.height or image.height)
                 page_redacted = False
 
+                # Recherche par terme (gere les espaces et multi-mots)
+                for term in lookup_terms:
+                    try:
+                        # On utilise search() de pdfplumber pour trouver les occurences exactes
+                        # même si elles s'étalent sur plusieurs "words"
+                        matches = page.search(term, case=case_sensitive)
+                        for match in matches:
+                            x0 = max(0, int(float(match["x0"]) * scale_x) - 2)
+                            x1 = min(image.width, int(float(match["x1"]) * scale_x) + 2)
+                            top = max(0, int(float(match["top"]) * scale_y) - 2)
+                            bottom = min(image.height, int(float(match["bottom"]) * scale_y) + 2)
+                            draw.rectangle([x0, top, x1, bottom], fill="black")
+                            page_redacted = True
+                    except Exception:
+                        pass
+
+                # Fallback sur les mots individuels (pour securite)
+                words = page.extract_words() or []
                 for word in words:
                     text = (word.get("text") or "").strip()
-                    if not text:
-                        continue
-
+                    if not text: continue
                     haystack = text if case_sensitive else text.casefold()
-                    matches = any(
-                        (term if case_sensitive else term.casefold()) in haystack
-                        for term in lookup_terms
-                    )
-                    if not matches:
-                        continue
-
-                    x0 = max(0, int(float(word["x0"]) * scale_x) - 2)
-                    x1 = min(image.width, int(float(word["x1"]) * scale_x) + 2)
-                    top = max(0, int(float(word["top"]) * scale_y) - 2)
-                    bottom = min(image.height, int(float(word["bottom"]) * scale_y) + 2)
-                    draw.rectangle([x0, top, x1, bottom], fill="black")
-                    page_redacted = True
+                    if any((t if case_sensitive else t.casefold()) in haystack for t in lookup_terms):
+                        x0 = max(0, int(float(word["x0"]) * scale_x) - 2)
+                        x1 = min(image.width, int(float(word["x1"]) * scale_x) + 2)
+                        top = max(0, int(float(word["top"]) * scale_y) - 2)
+                        bottom = min(image.height, int(float(word["bottom"]) * scale_y) + 2)
+                        draw.rectangle([x0, top, x1, bottom], fill="black")
+                        page_redacted = True
 
                 # Censure des images (Photos, logos, etc.)
-                # On cherche dans images et figures pour etre exhaustif
                 image_objects = []
                 image_objects.extend(getattr(page, "images", []))
                 image_objects.extend(getattr(page, "figures", []))
@@ -1087,7 +1096,6 @@ def censor_pdf(file, terms: str, case_sensitive: bool = False) -> bytes:
                         y0 = max(0, int(float(img["top"]) * scale_y) - 1)
                         x1 = min(image.width, int(float(img["x1"]) * scale_x) + 1)
                         y1 = min(image.height, int(float(img["bottom"]) * scale_y) + 1)
-                        # On evite de masquer toute la page par erreur (securite)
                         if (x1 - x0) < image.width * 0.9 or (y1 - y0) < image.height * 0.9:
                             draw.rectangle([x0, y0, x1, y1], fill="black")
                             page_redacted = True
@@ -1382,7 +1390,7 @@ def powerpoint_to_pdf(file) -> bytes:
         return _text_lines_to_pdf(lines, title="Conversion PowerPoint vers PDF")
     finally:
         cleanup([source_path])
-import re
+
 
 def anonymize_pdf(file) -> bytes:
     """Anonymisation totale des donnees personnelles (Nom, Tel, Social, Photo, etc.)."""
@@ -1405,42 +1413,37 @@ def anonymize_pdf(file) -> bytes:
         for p_name, p_regex in patterns.items():
             matches = re.findall(p_regex, text)
             for m in matches:
-                if len(m.strip()) > 5: # Evite les faux positifs trop courts
+                if len(m.strip()) > 5:
                     terms_to_censor.add(m.strip())
         
+        # Detection aggressive des sequences de chiffres (Telephones mal formates)
+        # Trouve des sequences comme "07 36 94 13" ou "05.16.04.04"
+        digit_sequences = re.findall(r"\b\d{2}[\s.-]\d{2}[\s.-]\d{2}[\s.-]\d{2}\b", text)
+        terms_to_censor.update(digit_sequences)
+
         # Detection des noms et prenoms (Heuristique d'entete)
         page_texts = _extract_pdf_text_by_page(source_path)
         if page_texts:
-            # On analyse les 5 premieres lignes de la premiere page
             first_page_lines = [l.strip() for l in page_texts[0].splitlines() if l.strip()]
             for i in range(min(6, len(first_page_lines))):
                 line = first_page_lines[i]
-                # Detection de prefixes de courtoisie ou structure Nom
                 if any(prefix in line for prefix in ["M.", "Mme", "Mr", "Monsieur", "Madame"]):
-                    # On ajoute la ligne entiere et chaque mot separément pour etre sur
                     terms_to_censor.add(line)
                     for word in line.split():
                         if len(word) > 2: terms_to_censor.add(word)
                 
-                # Si la ligne est courte et semble etre un nom (Majuscules)
                 if 3 < len(line) < 40 and any(c.isalpha() for c in line):
                     if line.upper() not in ["CURRICULUM VITAE", "CV", "RESUME", "EXPERIENCES", "FORMATION", "PARCOURS"]:
                         terms_to_censor.add(line)
-                        # Ajout des composants du nom
                         for part in line.split():
                             if len(part) > 2: terms_to_censor.add(part)
 
-        # On nettoie les termes vides ou trop courts
+        # Nettoyage
         final_terms_list = [t for t in terms_to_censor if len(str(t).strip()) > 2]
-        
         if not final_terms_list:
-            # Fallback minimal
             return censor_pdf(source_path, "email, @, linkedin")
 
-        # Conversion en chaine pour censor_pdf
         final_terms = ",".join(final_terms_list)
-        
-        # Appel de censor_pdf (qui gere maintenant images + figures)
         return censor_pdf(source_path, final_terms)
 
     finally:
