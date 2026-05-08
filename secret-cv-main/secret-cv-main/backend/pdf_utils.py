@@ -1075,6 +1075,18 @@ def censor_pdf(file, terms: str, case_sensitive: bool = False) -> bytes:
                     draw.rectangle([x0, top, x1, bottom], fill="black")
                     page_redacted = True
 
+                # Censure des images (Photos, logos, etc.)
+                for img in getattr(page, "images", []):
+                    try:
+                        x0 = max(0, int(float(img["x0"]) * scale_x) - 1)
+                        y0 = max(0, int(float(img["top"]) * scale_y) - 1)
+                        x1 = min(image.width, int(float(img["x1"]) * scale_x) + 1)
+                        y1 = min(image.height, int(float(img["bottom"]) * scale_y) + 1)
+                        draw.rectangle([x0, y0, x1, y1], fill="black")
+                        page_redacted = True
+                    except (KeyError, TypeError, ValueError):
+                        continue
+
                 if page_redacted:
                     redacted_pages += 1
 
@@ -1361,5 +1373,61 @@ def powerpoint_to_pdf(file) -> bytes:
         if not _normalize_lines(lines):
             raise ValueError("Le fichier PowerPoint ne contient pas de texte exploitable.")
         return _text_lines_to_pdf(lines, title="Conversion PowerPoint vers PDF")
+    finally:
+        cleanup([source_path])
+import re
+
+def anonymize_pdf(file) -> bytes:
+    """Anonymisation totale des donnees personnelles (Nom, Tel, Social, Photo, etc.)."""
+    source_path = save_upload_file(file)
+    try:
+        # 1. Extraction du texte pour detecter les entites via Regex
+        text = _extract_full_pdf_text(source_path)
+        
+        # Patterns de detection robustes
+        patterns = {
+            "email": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+",
+            "phone": r"(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}", # Format FR
+            "phone_intl": r"\+?\d{1,4}[\s.-]?\(?\d{1,4}\)?[\s.-]?\d{1,4}[\s.-]?\d{1,4}[\s.-]?\d{1,4}", # Intl
+            "linkedin": r"(?:https?://)?(?:www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+/?",
+            "zip": r"\b\d{5}\b", # Code postal FR
+        }
+        
+        terms_to_censor = set()
+        
+        # Detection via regex
+        for p_name, p_regex in patterns.items():
+            matches = re.findall(p_regex, text)
+            terms_to_censor.update(matches)
+        
+        # Detection des noms et prenoms (Heuristique d'entete)
+        page_texts = _extract_pdf_text_by_page(source_path)
+        if page_texts:
+            # On analyse les 5 premieres lignes de la premiere page
+            first_page_lines = [l.strip() for l in page_texts[0].splitlines() if l.strip()]
+            for i in range(min(5, len(first_page_lines))):
+                line = first_page_lines[i]
+                # Si la ligne est courte et ne contient pas que des chiffres/ponctuation
+                if 3 < len(line) < 50 and any(c.isalpha() for c in line):
+                    # On evite de censurer des titres generiques comme "CURRICULUM VITAE"
+                    if line.upper() not in ["CURRICULUM VITAE", "CV", "RESUME", "EXPERIENCES", "FORMATION"]:
+                        terms_to_censor.add(line)
+
+        # On nettoie les termes vides ou trop courts
+        final_terms_list = [t for t in terms_to_censor if len(t.strip()) > 2]
+        
+        if not final_terms_list:
+            # Fallback de securite
+            return censor_pdf(source_path, "email, @, linkedin")
+
+        # Conversion en chaine pour censor_pdf
+        final_terms = ",".join(final_terms_list)
+        
+        # Appel de censor_pdf (qui gere maintenant aussi le masquage des images/photos)
+        return censor_pdf(source_path, final_terms)
+
+    finally:
+        cleanup([source_path])
+
     finally:
         cleanup([source_path])

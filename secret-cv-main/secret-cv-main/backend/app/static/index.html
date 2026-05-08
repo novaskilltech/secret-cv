@@ -5,6 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NOVA PDF Tools</title>
   <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="icon" type="image/png" href="/static/favicon.png" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://nova-pdf-service-947356912712.europe-west1.run.app/" />
+  <meta property="og:title" content="Nova PDF Tools - La Suite PDF Ultime avec IA" />
+  <meta property="og:description" content="Fusionnez, divisez, compressez et convertissez vos PDF. Profitez d'outils avancés par IA : résumé automatique, traduction et censure sécurisée. 100% sécurisé et ultra-rapide." />
+  <meta property="og:image" content="/static/og-image.png" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://nova-pdf-service-947356912712.europe-west1.run.app/" />
+  <meta property="twitter:title" content="Nova PDF Tools - Suite PDF & IA" />
+  <meta property="twitter:description" content="La suite PDF complète avec résumé par IA, traduction et outils de sécurité avancés." />
+  <meta property="twitter:image" content="/static/og-image.png" />
 </head>
 <body>
   <header class="hero">
@@ -25,6 +40,14 @@
     <aside class="status-panel">
       <h2>Statut</h2>
       <p class="status-caption">Les cartes avec le badge `Beta` utilisent un rendu simplifie base sur le contenu extrait.</p>
+      
+      <div class="consent-box">
+        <label class="checkbox-row">
+          <input id="acceptTerms" type="checkbox" />
+          <span>J'accepte les <a href="/static/terms.html" target="_blank">Conditions d'utilisation non commerciale</a>.</span>
+        </label>
+      </div>
+
       <div id="message" class="info">Pret.</div>
       <div id="progressPanel" class="progress-panel" hidden>
         <div class="progress-row">
@@ -437,6 +460,16 @@
           <button type="button" data-action="censor">Censurer</button>
         </article>
         <article class="tool-card">
+          <div class="title-row"><h3>Anonymiser CV</h3><span class="badge">Nouveau</span></div>
+          <p>Detection et masquage automatique des donnees personnelles (Email, Tel, Liens) pour conformite RGPD avant analyse par IA.</p>
+          <label class="dropzone" data-dropzone="anonymizeFile">
+            <input id="anonymizeFile" class="file-input" type="file" accept="application/pdf" />
+            <span class="dropzone-title">Glissez votre CV ici</span>
+            <span class="dropzone-meta" data-file-label="anonymizeFile">Aucun fichier selectionne</span>
+          </label>
+          <button type="button" data-action="anonymize">Anonymiser</button>
+        </article>
+        <article class="tool-card">
           <div class="title-row"><h3>Generateur de resume par IA</h3><span class="badge beta">Beta</span></div>
           <p>Produit un resume texte. Utilise OPENAI_API_KEY si disponible, sinon un resume local extractif.</p>
           <label class="dropzone" data-dropzone="summaryFile">
@@ -461,6 +494,11 @@
       </div>
     </section>
   </main>
+
+  <footer class="site-footer">
+    <p>&copy; 2026 NovaSkillTech - <a href="/static/terms.html" target="_blank">Conditions d'utilisation</a></p>
+    <p>Contact : <a href="mailto:novaskilltech@gmail.com">novaskilltech@gmail.com</a></p>
+  </footer>
 
   <script src="/static/app.js"></script>
 </body>

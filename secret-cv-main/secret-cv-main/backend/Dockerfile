@@ -41,10 +41,7 @@ RUN chmod +x entrypoint.sh && \
 
 USER appuser
 
-EXPOSE 8000
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:8000/ || exit 1
-
+# EXPOSE and HEALTHCHECK are managed by Cloud Run
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start with dynamic port for Cloud Run compatibility
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}

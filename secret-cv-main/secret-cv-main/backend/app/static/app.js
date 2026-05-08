@@ -27,12 +27,19 @@ const API = {
   sign: "/api/sign",
   summarize: "/api/ai/summarize",
   translate: "/api/ai/translate",
+  anonymize: "/api/anonymize",
 };
 
 const PAGE_RANGE_PATTERN = /^\s*\d+\s*(?:-\s*\d+\s*)?(?:,\s*\d+\s*(?:-\s*\d+\s*)?)*\s*$/;
 let progressTimer = null;
 
 async function submitForm(action) {
+  const acceptTerms = document.getElementById("acceptTerms");
+  if (!acceptTerms || !acceptTerms.checked) {
+    setMessage("Veuillez accepter les conditions d'utilisation non commerciale avant de continuer.", "error");
+    return;
+  }
+
   const form = new FormData();
   setBusy(true);
   resetProgress();
@@ -186,6 +193,10 @@ async function submitForm(action) {
         form.append("file", getRequiredFile("translateFile", "Selectionnez un PDF."));
         form.append("target_language", getRequiredText("targetLanguage", "Entrez la langue cible."));
         await submitRequest(API.translate, form, "translated.pdf");
+        break;
+      case "anonymize":
+        form.append("file", getRequiredFile("anonymizeFile", "Selectionnez un CV (PDF)."));
+        await submitRequest(API.anonymize, form, "anonymized.pdf");
         break;
       default:
         throw new Error("Action inconnue.");

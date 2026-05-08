@@ -12,6 +12,7 @@ from starlette.middleware.cors import CORSMiddleware
 from pdf_utils import (
     add_page_numbers,
     add_watermark,
+    anonymize_pdf,
     censor_pdf,
     compare_pdfs,
     compress_pdf,
@@ -22,6 +23,7 @@ from pdf_utils import (
     extract_text_from_pdf,
     html_to_pdf,
     image_to_pdf,
+    managed_upload_file,
     merge_pdfs,
     pdf_to_excel,
     pdf_to_images,
@@ -320,4 +322,10 @@ async def api_summarize(file: UploadFile = File(...), max_sentences: int = Form(
 async def api_translate(file: UploadFile = File(...), target_language: str = Form("francais")):
     with managed_upload_file(file) as path:
         return file_download(translate_pdf(path, target_language), "application/pdf", "translated.pdf")
+
+
+@app.post("/api/anonymize")
+async def api_anonymize(file: UploadFile = File(...)):
+    with managed_upload_file(file) as path:
+        return file_download(anonymize_pdf(path), "application/pdf", "anonymized.pdf")
 

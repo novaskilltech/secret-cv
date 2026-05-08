@@ -1,0 +1,10 @@
+.gcloudignore
+.git
+.gitignore
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+app/static/node_modules/

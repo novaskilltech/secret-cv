@@ -448,3 +448,35 @@ input[type="range"] {
     grid-template-columns: 1fr;
   }
 }
+
+.consent-box {
+  margin: 1rem 0;
+  padding: 0.8rem;
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+}
+
+.consent-box a,
+.site-footer a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.consent-box a:hover,
+.site-footer a:hover {
+  text-decoration: underline;
+}
+
+.site-footer {
+  text-align: center;
+  padding: 3rem 1.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--line);
+  margin-top: 2rem;
+  max-width: 1240px;
+  margin-left: auto;
+  margin-right: auto;
+}
