@@ -93,6 +93,39 @@
         </div>
       </div>
 
+      <!-- Visual Experience & 3D Glassmorphism Showcase -->
+      <div class="showcase-dual-grid">
+        <!-- Left: Workspace scene seen from behind (no face) -->
+        <div class="glass-showcase-card">
+          <div class="glass-showcase-img-wrap">
+            <img src="/static/workspace-hero.jpg" alt="Espace de travail professionnel NOVA PDF" class="glass-showcase-img" loading="lazy" />
+            <div class="showcase-overlay-badge">
+              <div>
+                <h4>Conçu pour votre productivité</h4>
+                <p>Traitement instantané de vos rapports, contrats et mémoires sans latence.</p>
+              </div>
+              <span class="badge-pill" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 0.8rem;">⚡ 100% Fluide</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: 3D Logo on Glassmorphic Pedestal Trophy with 3D Rotation -->
+        <div class="glass-showcase-card trophy-3d-card" id="trophyCard">
+          <div class="trophy-inner-3d">
+            <div class="glass-showcase-img-wrap">
+              <img src="/static/trophy-pedestal.jpg" alt="NOVA PDF 3D Trophy Pedestal" class="trophy-card-img" id="trophyImg" />
+              <div class="showcase-overlay-badge">
+                <div>
+                  <h4>Trophée NOVA PDF 3D</h4>
+                  <p>Survolez pour activer la rotation 3D</p>
+                </div>
+                <span class="trophy-interactive-hint">✨ Effet 3D Actif</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Preview Mockup -->
       <div class="hero-preview">
         <div class="preview-browser">
@@ -325,5 +358,33 @@
       </div>
     </div>
   </footer>
+
+  <script>
+    // 3D Parallax & Gyro Tilt on Trophy Card
+    (function init3DEffects() {
+      const card = document.getElementById('trophyCard');
+      const inner = card ? card.querySelector('.trophy-inner-3d') : null;
+      const img = document.getElementById('trophyImg');
+
+      if (card && inner && img) {
+        card.addEventListener('mousemove', (e) => {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+          
+          const rotateX = ((y - centerY) / centerY) * -14;
+          const rotateY = ((x - centerX) / centerX) * 18;
+
+          inner.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.03, 1.03, 1.03)`;
+        });
+
+        card.addEventListener('mouseleave', () => {
+          inner.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+        });
+      }
+    })();
+  </script>
 </body>
 </html>

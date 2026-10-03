@@ -725,4 +725,154 @@ body {
   .pricing-card.featured {
     transform: none;
   }
+  .showcase-dual-grid {
+    grid-template-columns: 1fr;
+  }
 }
+
+/* =========================================================
+   3D Interactive Logo & Glassmorphism Showcase
+========================================================= */
+
+.logo-3d-wrapper {
+  display: inline-flex;
+  align-items: center;
+  perspective: 1000px;
+}
+
+.logo-img, .nav-logo img, .footer-left img, .brand img {
+  transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.4s ease;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.nav-logo:hover .logo-img,
+.brand:hover .logo-img,
+.logo-img:hover {
+  transform: perspective(600px) rotateY(360deg) scale(1.2);
+  filter: drop-shadow(0 0 16px rgba(217, 83, 30, 0.65)) drop-shadow(0 0 28px rgba(234, 88, 12, 0.45));
+}
+
+/* Dual Visual Showcase Section (Office Workspace & 3D Trophy) */
+.showcase-dual-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 1.75rem;
+  margin: 3.5rem 0 2rem;
+  align-items: stretch;
+}
+
+.glass-showcase-card {
+  position: relative;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s ease, border-color 0.5s ease;
+  perspective: 1200px;
+}
+
+.glass-showcase-card:hover {
+  border-color: rgba(217, 83, 30, 0.5);
+  box-shadow: 0 25px 60px rgba(217, 83, 30, 0.25), 0 0 35px rgba(234, 88, 12, 0.18);
+}
+
+.glass-showcase-img-wrap {
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-showcase-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), filter 0.5s ease;
+}
+
+.glass-showcase-card:hover .glass-showcase-img {
+  transform: scale(1.05);
+}
+
+/* 3D Trophy Interactive Pedestal */
+.trophy-3d-card {
+  cursor: pointer;
+  background: radial-gradient(circle at center, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+}
+
+.trophy-inner-3d {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.trophy-3d-card:hover .trophy-inner-3d {
+  transform: rotateY(20deg) rotateX(-6deg) scale(1.02);
+}
+
+.trophy-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.5s ease;
+}
+
+.trophy-3d-card:hover .trophy-card-img {
+  transform: perspective(800px) rotateY(360deg);
+  filter: drop-shadow(0 0 30px rgba(217, 83, 30, 0.75));
+}
+
+.showcase-overlay-badge {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 1.25rem;
+  right: 1.25rem;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  z-index: 10;
+}
+
+.showcase-overlay-badge h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+  color: #fff;
+}
+
+.showcase-overlay-badge p {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.trophy-interactive-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(217, 83, 30, 0.2);
+  border: 1px solid rgba(217, 83, 30, 0.4);
+  color: #ff8a50;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
