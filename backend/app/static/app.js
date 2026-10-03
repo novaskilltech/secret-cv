@@ -29,10 +29,157 @@ const API = {
   translate: "/api/ai/translate",
 };
 
+const PRO_ACTIONS = new Set([
+  "ocr",
+  "word-to-pdf",
+  "powerpoint-to-pdf",
+  "excel-to-pdf",
+  "pdf-to-word",
+  "pdf-to-powerpoint",
+  "pdf-to-excel",
+  "watermark",
+  "unlock",
+  "protect",
+  "compare",
+  "sign",
+  "censor",
+  "summarize",
+  "translate",
+]);
+
+const DAILY_FREE_LIMIT = 3;
+
+function isPro() {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("status") === "pro" || urlParams.get("status") === "unlocked") {
+      localStorage.setItem("nova_pro_status", "active");
+    }
+    return localStorage.getItem("nova_pro_status") === "active";
+  } catch (_) {
+    return false;
+  }
+}
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getDailyUsage() {
+  try {
+    const raw = localStorage.getItem("nova_daily_quota");
+    const today = getTodayKey();
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.date === today) {
+        return { date: today, count: Number(parsed.count) || 0 };
+      }
+    }
+    const fresh = { date: today, count: 0 };
+    localStorage.setItem("nova_daily_quota", JSON.stringify(fresh));
+    return fresh;
+  } catch (_) {
+    return { date: getTodayKey(), count: 0 };
+  }
+}
+
+function incrementDailyUsage() {
+  try {
+    const usage = getDailyUsage();
+    usage.count += 1;
+    localStorage.setItem("nova_daily_quota", JSON.stringify(usage));
+    return usage;
+  } catch (_) {
+    return { date: getTodayKey(), count: 1 };
+  }
+}
+
+function openPaywallModal(reason = "pro_feature") {
+  const modal = document.getElementById("paywallModal");
+  const title = document.getElementById("modalTitle");
+  const desc = document.getElementById("modalDesc");
+  const feedback = document.getElementById("keyFeedback");
+  if (feedback) feedback.style.display = "none";
+
+  if (!modal || !title || !desc) return;
+
+  if (reason === "quota_reached") {
+    title.textContent = "Quota journalier atteint (3/3)";
+    desc.innerHTML = "Vous avez utilisé vos <strong>3 opérations gratuites</strong> aujourd'hui. Débloquez le <strong>Pass Illimité</strong> pour continuer sans attendre demain.";
+  } else if (reason === "license_input") {
+    title.textContent = "Activer votre Pass Illimité";
+    desc.innerHTML = "Entrez la <strong>Clé Pass Nova</strong> reçue lors de votre commande pour débloquer tous les outils sur cet appareil.";
+  } else {
+    title.textContent = "Fonctionnalité réservée au Pass Illimité";
+    desc.innerHTML = "Cette fonctionnalité avancée requiert un <strong>Pass Illimité</strong>. Débloquez instantanément tous les outils avancés sans quota.";
+  }
+
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closePaywallModal() {
+  const modal = document.getElementById("paywallModal");
+  if (modal) {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+  }
+}
+
+function updateQuotaUI() {
+  const quotaContainer = document.getElementById("quotaContainer");
+  const quotaText = document.getElementById("quotaText");
+  const btnOpenPassModal = document.getElementById("btnOpenPassModal");
+  const stripeBuyBtn = document.getElementById("stripe-buy-btn");
+  const messageEl = document.getElementById("message");
+
+  if (isPro()) {
+    if (quotaContainer) {
+      quotaContainer.className = "quota-badge pro-active";
+    }
+    if (quotaText) {
+      quotaText.textContent = "👑 Pass Illimité Actif";
+    }
+    if (btnOpenPassModal) {
+      btnOpenPassModal.style.display = "none";
+    }
+    if (stripeBuyBtn) {
+      stripeBuyBtn.textContent = "📄 Factures & Support";
+      stripeBuyBtn.href = "https://billing.stripe.com/p/login/00wbJ1dEKdR5b3Re1ggbm00";
+      stripeBuyBtn.style.background = "#334155";
+    }
+    if (messageEl && (messageEl.textContent === "Pret." || messageEl.textContent.startsWith("Prêt"))) {
+      messageEl.textContent = "Prêt — Mode Illimité Pro Actif (500 Mo / fichier, sans quota).";
+      messageEl.className = "status-ok";
+    }
+  } else {
+    const usage = getDailyUsage();
+    if (quotaContainer) {
+      quotaContainer.className = usage.count >= DAILY_FREE_LIMIT ? "quota-badge warning" : "quota-badge";
+    }
+    if (quotaText) {
+      quotaText.textContent = `Quota gratuit : ${usage.count}/${DAILY_FREE_LIMIT} aujourd'hui`;
+    }
+  }
+}
+
 const PAGE_RANGE_PATTERN = /^\s*\d+\s*(?:-\s*\d+\s*)?(?:,\s*\d+\s*(?:-\s*\d+\s*)?)*\s*$/;
 let progressTimer = null;
 
 async function submitForm(action) {
+  // Controle Freemium
+  if (!isPro()) {
+    if (PRO_ACTIONS.has(action)) {
+      openPaywallModal("pro_feature");
+      return;
+    }
+    const usage = getDailyUsage();
+    if (usage.count >= DAILY_FREE_LIMIT) {
+      openPaywallModal("quota_reached");
+      return;
+    }
+  }
+
   const form = new FormData();
   setBusy(true);
   resetProgress();
@@ -212,6 +359,12 @@ async function submitRequest(url, formData, fallbackFilename) {
   downloadBlob(response.blob, filename);
   setProgress(100, "Termine");
   setMessage(`Telechargement lance : ${filename}`, "success");
+
+  // Incrementer le quota gratuit journalier si non-pro
+  if (!isPro()) {
+    incrementDailyUsage();
+    updateQuotaUI();
+  }
 }
 
 function sendFormData(url, formData) {
@@ -219,6 +372,12 @@ function sendFormData(url, formData) {
     const request = new XMLHttpRequest();
     request.open("POST", url);
     request.responseType = "blob";
+
+    // Transmission de la cle Pass si actif
+    if (isPro()) {
+      const passKey = localStorage.getItem("nova_pro_pass_key") || "NOVA-PRO-USER";
+      request.setRequestHeader("X-Nova-Pass", passKey);
+    }
 
     request.upload.addEventListener("progress", (event) => {
       if (!event.lengthComputable) {
@@ -459,8 +618,96 @@ function setupDropzones() {
   });
 }
 
+function setupModal() {
+  const modal = document.getElementById("paywallModal");
+  const closeBtn = document.getElementById("modalCloseBtn");
+  const openBtn = document.getElementById("btnOpenPassModal");
+  const submitKeyBtn = document.getElementById("btnSubmitKey");
+  const inputKey = document.getElementById("inputLicenseKey");
+  const feedback = document.getElementById("keyFeedback");
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", closePaywallModal);
+  }
+
+  if (openBtn) {
+    openBtn.addEventListener("click", () => openPaywallModal("license_input"));
+  }
+
+  if (modal) {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        closePaywallModal();
+      }
+    });
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closePaywallModal();
+    }
+  });
+
+  if (submitKeyBtn && inputKey && feedback) {
+    submitKeyBtn.addEventListener("click", async () => {
+      const key = inputKey.value.trim().toUpperCase();
+      if (!key) {
+        feedback.style.display = "block";
+        feedback.style.color = "#dc2626";
+        feedback.textContent = "Veuillez saisir votre clé de licence.";
+        return;
+      }
+
+      feedback.style.display = "block";
+      feedback.style.color = "#d97706";
+      feedback.textContent = "Vérification en cours...";
+
+      try {
+        const res = await fetch("/api/license/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key }),
+        });
+        const data = await res.json();
+        if (res.ok && data.valid) {
+          localStorage.setItem("nova_pro_status", "active");
+          localStorage.setItem("nova_pro_pass_key", key);
+          feedback.style.color = "#16a34a";
+          feedback.textContent = "✓ Pass activé avec succès !";
+          updateQuotaUI();
+          setTimeout(() => {
+            closePaywallModal();
+            setMessage("👑 Pass Illimité activé avec succès !", "success");
+          }, 1000);
+        } else {
+          feedback.style.color = "#dc2626";
+          feedback.textContent = data.detail || "Clé invalide ou non reconnue.";
+        }
+      } catch (err) {
+        // Fallback local verification si hors-ligne
+        if (key.startsWith("NOVA-PASS-") || key.startsWith("NOVA-PRO-") || key.length >= 12) {
+          localStorage.setItem("nova_pro_status", "active");
+          localStorage.setItem("nova_pro_pass_key", key);
+          feedback.style.color = "#16a34a";
+          feedback.textContent = "✓ Pass activé !";
+          updateQuotaUI();
+          setTimeout(() => {
+            closePaywallModal();
+            setMessage("👑 Pass Illimité activé avec succès !", "success");
+          }, 1000);
+        } else {
+          feedback.style.color = "#dc2626";
+          feedback.textContent = "Erreur de connexion. Vérifiez votre clé.";
+        }
+      }
+    });
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   setupButtons();
   setupOpacitySlider();
   setupDropzones();
+  setupModal();
+  updateQuotaUI();
 });

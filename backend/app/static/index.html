@@ -35,8 +35,12 @@
       <img src="/static/logo.png" alt="NOVA PDF Logo" style="width: 32px; height: 32px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(217,83,30,0.25));" />
       <span>NOVA<strong>PDF</strong></span>
     </a>
-    <div id="nav-membership-cta" style="display: flex; align-items: center; gap: 1rem;">
+    <div id="nav-membership-cta" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
       <a href="/" style="color: #475569; text-decoration: none; font-weight: 500; font-size: 0.95rem;">← Retour à l'accueil</a>
+      <div id="quotaContainer" class="quota-badge">
+        <span id="quotaText">Quota gratuit : 0/3 aujourd'hui</span>
+      </div>
+      <button id="btnOpenPassModal" type="button" class="btn-activate-pass">🔑 Activer un Pass</button>
       <a id="stripe-buy-btn" href="https://buy.stripe.com/14A5kD0RY9APfk7cXcgbm0s" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(135deg, #d9531e, #ea580c); color: #fff; text-decoration: none; padding: 0.45rem 1rem; border-radius: 999px; font-weight: 600; font-size: 0.9rem; box-shadow: 0 2px 8px rgba(217, 83, 30, 0.25);">⚡ Pass Illimité (9,99 € / an)</a>
     </div>
   </nav>
@@ -171,8 +175,8 @@
           <button type="button" data-action="repair">Reparer</button>
         </article>
 
-        <article class="tool-card">
-          <div class="title-row"><h3>OCR PDF</h3><span class="badge beta">Beta</span></div>
+        <article class="tool-card card-pro" data-pro-tool="ocr">
+          <div class="title-row"><h3>OCR PDF</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Exporte le texte exploitable du PDF. Pas d’OCR image sans moteur externe.</p>
           <label class="dropzone" data-dropzone="ocrFile">
             <input id="ocrFile" class="file-input" type="file" accept="application/pdf" />
@@ -202,8 +206,8 @@
           <button type="button" data-action="convert">Convertir</button>
         </article>
 
-        <article class="tool-card">
-          <div class="title-row"><h3>Word en PDF</h3><span class="badge beta">Beta</span></div>
+        <article class="tool-card card-pro" data-pro-tool="word-to-pdf">
+          <div class="title-row"><h3>Word en PDF</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Rendu simplifie a partir du texte et des tableaux du `.docx`.</p>
           <label class="dropzone" data-dropzone="wordToPdfFile">
             <input id="wordToPdfFile" class="file-input" type="file" accept=".docx" />
@@ -213,8 +217,8 @@
           <button type="button" data-action="word-to-pdf">Convertir</button>
         </article>
 
-        <article class="tool-card">
-          <div class="title-row"><h3>PowerPoint en PDF</h3><span class="badge beta">Beta</span></div>
+        <article class="tool-card card-pro" data-pro-tool="powerpoint-to-pdf">
+          <div class="title-row"><h3>PowerPoint en PDF</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Rendu texte simplifie des diapositives `.pptx`.</p>
           <label class="dropzone" data-dropzone="powerpointToPdfFile">
             <input id="powerpointToPdfFile" class="file-input" type="file" accept=".pptx" />
@@ -224,8 +228,8 @@
           <button type="button" data-action="powerpoint-to-pdf">Convertir</button>
         </article>
 
-        <article class="tool-card">
-          <div class="title-row"><h3>Excel en PDF</h3><span class="badge beta">Beta</span></div>
+        <article class="tool-card card-pro" data-pro-tool="excel-to-pdf">
+          <div class="title-row"><h3>Excel en PDF</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Rendu ligne par ligne des feuilles `.xlsx`.</p>
           <label class="dropzone" data-dropzone="excelToPdfFile">
             <input id="excelToPdfFile" class="file-input" type="file" accept=".xlsx" />
@@ -266,8 +270,8 @@
           <button type="button" data-action="pdf-to-jpg">Convertir</button>
         </article>
 
-        <article class="tool-card">
-          <div class="title-row"><h3>PDF en Word</h3><span class="badge beta">Beta</span></div>
+        <article class="tool-card card-pro" data-pro-tool="pdf-to-word">
+          <div class="title-row"><h3>PDF en Word</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Exporte le texte du PDF dans un document Word.</p>
           <label class="dropzone" data-dropzone="pdfToWordFile">
             <input id="pdfToWordFile" class="file-input" type="file" accept="application/pdf" />
@@ -277,8 +281,8 @@
           <button type="button" data-action="pdf-to-word">Convertir</button>
         </article>
 
-        <article class="tool-card">
-          <div class="title-row"><h3>PDF en PowerPoint</h3><span class="badge beta">Beta</span></div>
+        <article class="tool-card card-pro" data-pro-tool="pdf-to-powerpoint">
+          <div class="title-row"><h3>PDF en PowerPoint</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Chaque page devient une diapositive image dans un `.pptx`.</p>
           <label class="dropzone" data-dropzone="pdfToPowerPointFile">
             <input id="pdfToPowerPointFile" class="file-input" type="file" accept="application/pdf" />
@@ -288,8 +292,8 @@
           <button type="button" data-action="pdf-to-powerpoint">Convertir</button>
         </article>
 
-        <article class="tool-card">
-          <div class="title-row"><h3>PDF en Excel</h3><span class="badge beta">Beta</span></div>
+        <article class="tool-card card-pro" data-pro-tool="pdf-to-excel">
+          <div class="title-row"><h3>PDF en Excel</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Tables si detectees, sinon texte page par page en colonnes.</p>
           <label class="dropzone" data-dropzone="pdfToExcelFile">
             <input id="pdfToExcelFile" class="file-input" type="file" accept="application/pdf" />
@@ -345,8 +349,8 @@
           <button type="button" data-action="numbering">Numeroter</button>
         </article>
 
-        <article class="tool-card">
-          <h3>Ajouter un filigrane</h3>
+        <article class="tool-card card-pro" data-pro-tool="watermark">
+          <div class="title-row"><h3>Ajouter un filigrane</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Texte applique sur toutes les pages du document.</p>
           <label class="dropzone" data-dropzone="watermarkFile">
             <input id="watermarkFile" class="file-input" type="file" accept="application/pdf" />
@@ -387,8 +391,8 @@
       </div>
 
       <div class="tool-grid compact-grid">
-        <article class="tool-card">
-          <div class="title-row"><h3>Deverrouiller PDF</h3><span class="badge">Nouveau</span></div>
+        <article class="tool-card card-pro" data-pro-tool="unlock">
+          <div class="title-row"><h3>Deverrouiller PDF</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Supprime la protection d’un PDF si vous connaissez son mot de passe.</p>
           <label class="dropzone" data-dropzone="unlockFile">
             <input id="unlockFile" class="file-input" type="file" accept="application/pdf" />
@@ -399,8 +403,8 @@
           <button type="button" data-action="unlock">Deverrouiller</button>
         </article>
 
-        <article class="tool-card">
-          <div class="title-row"><h3>Proteger PDF</h3><span class="badge">Nouveau</span></div>
+        <article class="tool-card card-pro" data-pro-tool="protect">
+          <div class="title-row"><h3>Proteger PDF</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Ajoutez un mot de passe utilisateur et, si besoin, un mot de passe proprietaire.</p>
           <label class="dropzone" data-dropzone="protectFile">
             <input id="protectFile" class="file-input" type="file" accept="application/pdf" />
@@ -412,8 +416,8 @@
           <button type="button" data-action="protect">Proteger</button>
         </article>
 
-        <article class="tool-card">
-          <div class="title-row"><h3>Comparer PDF</h3><span class="badge">Nouveau</span></div>
+        <article class="tool-card card-pro" data-pro-tool="compare">
+          <div class="title-row"><h3>Comparer PDF</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Genere un rapport JSON des differences de texte et de pagination.</p>
           <label class="dropzone" data-dropzone="compareFileA">
             <input id="compareFileA" class="file-input" type="file" accept="application/pdf" />
@@ -437,8 +441,8 @@
       </div>
 
       <div class="tool-grid compact-grid">
-        <article class="tool-card">
-          <div class="title-row"><h3>Signer PDF</h3><span class="badge">Nouveau</span></div>
+        <article class="tool-card card-pro" data-pro-tool="sign">
+          <div class="title-row"><h3>Signer PDF</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Ajoute une signature visible sur chaque page. Ce n'est pas une signature cryptographique certifiee.</p>
           <label class="dropzone" data-dropzone="signFile">
             <input id="signFile" class="file-input" type="file" accept="application/pdf" />
@@ -456,8 +460,8 @@
           </select>
           <button type="button" data-action="sign">Signer</button>
         </article>
-        <article class="tool-card">
-          <div class="title-row"><h3>Censurer PDF</h3><span class="badge">Nouveau</span></div>
+        <article class="tool-card card-pro" data-pro-tool="censor">
+          <div class="title-row"><h3>Censurer PDF</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Recherche des termes et les supprime de facon irreversible via reconstruction image.</p>
           <label class="dropzone" data-dropzone="censorFile">
             <input id="censorFile" class="file-input" type="file" accept="application/pdf" />
@@ -471,8 +475,8 @@
           </label>
           <button type="button" data-action="censor">Censurer</button>
         </article>
-        <article class="tool-card">
-          <div class="title-row"><h3>Generateur de resume par IA</h3><span class="badge beta">Beta</span></div>
+        <article class="tool-card card-pro" data-pro-tool="summarize">
+          <div class="title-row"><h3>Generateur de resume par IA</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Produit un resume texte. Utilise OPENAI_API_KEY si disponible, sinon un resume local extractif.</p>
           <label class="dropzone" data-dropzone="summaryFile">
             <input id="summaryFile" class="file-input" type="file" accept="application/pdf" />
@@ -482,8 +486,8 @@
           <input id="summarySentences" type="number" min="1" max="20" step="1" value="6" />
           <button type="button" data-action="summarize">Generer le resume</button>
         </article>
-        <article class="tool-card">
-          <div class="title-row"><h3>Traduire le PDF</h3><span class="badge beta">Beta</span></div>
+        <article class="tool-card card-pro" data-pro-tool="translate">
+          <div class="title-row"><h3>Traduire le PDF</h3><span class="badge pro">🔒 Pass Illimité</span></div>
           <p>Extrait le texte, le traduit, puis reconstruit un PDF texte.</p>
           <label class="dropzone" data-dropzone="translateFile">
             <input id="translateFile" class="file-input" type="file" accept="application/pdf" />
@@ -497,39 +501,39 @@
     </section>
   </main>
 
-  <script src="/static/app.js"></script>
-  <script>
-    (function checkProStatus() {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('status') === 'pro' || urlParams.get('status') === 'unlocked') {
-          localStorage.setItem('nova_pro_status', 'active');
-        }
+  <!-- Modal Paywall & Activation Pass Nova -->
+  <div id="paywallModal" class="nova-modal-backdrop" aria-hidden="true" role="dialog">
+    <div class="nova-modal-card">
+      <button id="modalCloseBtn" type="button" class="modal-close-btn" aria-label="Fermer">&times;</button>
+      <div class="modal-icon-badge">🔒</div>
+      <h3 id="modalTitle" class="modal-title">Fonctionnalité réservée au Pass Illimité</h3>
+      <p id="modalDesc" class="modal-desc">
+        Cette fonctionnalité requiert un <strong>Pass Illimité</strong>. Débloquez instantanément tous les outils avancés sans quota.
+      </p>
 
-        const isPro = localStorage.getItem('nova_pro_status') === 'active';
-        if (isPro) {
-          const navCta = document.getElementById('nav-membership-cta');
-          if (navCta) {
-            navCta.innerHTML = `
-              <a href="/" style="color: #475569; text-decoration: none; font-weight: 500; font-size: 0.95rem;">← Accueil</a>
-              <span style="background: rgba(16, 185, 129, 0.12); color: #059669; border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.4rem 0.9rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem;">
-                👑 Pass Illimité Actif
-              </span>
-              <a href="https://billing.stripe.com/p/login/00wbJ1dEKdR5b3Re1ggbm00" target="_blank" rel="noopener noreferrer" style="color: #64748b; font-size: 0.85rem; text-decoration: underline;">
-                Factures
-              </a>
-            `;
-          }
-          const msgEl = document.getElementById('message');
-          if (msgEl && msgEl.textContent === 'Pret.') {
-            msgEl.textContent = 'Prêt — Mode Illimité Pro Actif (500 Mo / fichier, sans quota).';
-            msgEl.className = 'status-ok';
-          }
-        }
-      } catch (e) {
-        console.warn('Pro status check error:', e);
-      }
-    })();
-  </script>
+      <ul class="modal-benefits">
+        <li><span>✓</span> Traitement illimité 24/7 (zéro quota quotidien)</li>
+        <li><span>✓</span> Censure irréversible, Signature et Chiffrement sécurisé</li>
+        <li><span>✓</span> Conversions Office haute fidélité (Word, Excel, PowerPoint)</li>
+        <li><span>✓</span> Résumé automatique & Traduction IA sans limite</li>
+        <li><span>✓</span> Fichiers jusqu'à 500 Mo et traitement prioritaire</li>
+      </ul>
+
+      <a id="modalBuyBtn" href="https://buy.stripe.com/14A5kD0RY9APfk7cXcgbm0s" target="_blank" rel="noopener noreferrer" class="modal-cta-btn">
+        ⚡ Débloquer le Pass Illimité — 9,99 € / an
+      </a>
+
+      <div class="modal-key-section">
+        <label for="inputLicenseKey">Vous disposez déjà d'une Clé Pass Nova ?</label>
+        <div class="modal-key-input-row">
+          <input id="inputLicenseKey" type="text" class="modal-key-input" placeholder="NOVA-PASS-XXXX-XXXX" />
+          <button id="btnSubmitKey" type="button" class="modal-key-submit-btn">Activer</button>
+        </div>
+        <p id="keyFeedback" style="margin: 0.5rem 0 0; font-size: 0.82rem; display: none;"></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
 </body>
 </html>

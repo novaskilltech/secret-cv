@@ -155,6 +155,22 @@
         </ul>
       </div>
 
+      <!-- Clé Pass Nova pour réactivation sur d'autres appareils -->
+      <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(217, 83, 30, 0.4); border-radius: 16px; padding: 1.25rem; margin-bottom: 2rem; text-align: left;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #ff8a50; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+          🔑 Votre Clé Pass Illimité (à conserver) :
+        </label>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <code id="passKeyText" style="flex: 1; background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.2); padding: 0.75rem 1rem; border-radius: 10px; font-family: monospace; font-size: 1.05rem; color: #38bdf8; letter-spacing: 0.05em; word-break: break-all;">NOVA-PASS-CHARGEMENT...</code>
+          <button id="copyKeyBtn" type="button" class="btn btn-secondary" style="padding: 0.75rem 1.25rem; font-weight: 600; white-space: nowrap; cursor: pointer;">
+            📋 Copier
+          </button>
+        </div>
+        <p style="margin: 0.6rem 0 0; font-size: 0.8rem; color: #94a3b8;">
+          Utilisez cette clé pour réactiver instantanément votre Pass sur vos autres ordinateurs ou téléphones.
+        </p>
+      </div>
+
       <div class="cta-actions">
         <a href="/tools?status=pro" class="btn btn-primary btn-block btn-pulse" style="font-size: 1.1rem; padding: 1rem 1.5rem; text-decoration: none;">
           ⚡ Ouvrir l'espace Outils PDF (Mode Pro)
@@ -181,6 +197,31 @@
     try {
       localStorage.setItem('nova_pro_status', 'active');
       localStorage.setItem('nova_pro_activated_at', new Date().toISOString());
+
+      // Generation ou recuperation de la cle Pass Nova
+      let passKey = localStorage.getItem('nova_pro_pass_key');
+      if (!passKey) {
+        const rand = () => Math.random().toString(36).substring(2, 6).toUpperCase();
+        passKey = `NOVA-PASS-${rand()}-${rand()}-${rand()}`;
+        localStorage.setItem('nova_pro_pass_key', passKey);
+      }
+
+      const passKeyEl = document.getElementById('passKeyText');
+      if (passKeyEl) {
+        passKeyEl.textContent = passKey;
+      }
+
+      const copyBtn = document.getElementById('copyKeyBtn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(passKey).then(() => {
+            copyBtn.textContent = '✓ Copié !';
+            setTimeout(() => { copyBtn.textContent = '📋 Copier'; }, 2000);
+          }).catch(() => {
+            prompt('Copiez votre clé :', passKey);
+          });
+        });
+      }
       
       const params = new URLSearchParams(window.location.search);
       const sessionId = params.get('session_id');

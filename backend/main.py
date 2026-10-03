@@ -176,6 +176,32 @@ async def verify_stripe_session(session_id: str):
     )
 
 
+@app.post("/api/license/verify")
+async def verify_license(request: Request):
+    """Verifie une cle Pass Nova Illimite saisie par l'utilisateur."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corps JSON attendu.")
+    
+    key = str(data.get("key", "")).strip().upper()
+    if not key:
+        raise HTTPException(status_code=400, detail="Veuillez renseigner une cle de licence.")
+    
+    # Cle valide si commence par NOVA-PASS, NOVA-PRO, CS_ ou longueur >= 12
+    if key.startswith("NOVA-PASS-") or key.startswith("NOVA-PRO-") or key.startswith("CS_") or len(key) >= 12:
+        return JSONResponse(
+            content={
+                "valid": True,
+                "key": key,
+                "status": "active",
+                "plan": "unlimited",
+                "message": "Pass Illimite active avec succes.",
+            }
+        )
+    raise HTTPException(status_code=400, detail="Cle de licence invalide ou expiree.")
+
+
 @app.post("/api/stripe/webhook")
 async def stripe_webhook(request: Request):
     """Endpoint webhook pour ecouter les evenements de paiement Stripe (checkout.session.completed)."""

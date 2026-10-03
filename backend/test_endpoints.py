@@ -700,6 +700,32 @@ class NovaPdfEndpointsTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["event_type"], "checkout.session.completed")
 
+    def test_verify_license_endpoint(self):
+        """Test /api/license/verify with valid and invalid Pass keys"""
+        # Cle valide avec prefixe NOVA-PASS-
+        resp = self.client.post(
+            "/api/license/verify",
+            json={"key": "NOVA-PASS-ABC1-XYZ2"}
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["valid"])
+        self.assertEqual(resp.json()["plan"], "unlimited")
+
+        # Cle valide avec prefixe NOVA-PRO-
+        resp2 = self.client.post(
+            "/api/license/verify",
+            json={"key": "NOVA-PRO-9999"}
+        )
+        self.assertEqual(resp2.status_code, 200)
+        self.assertTrue(resp2.json()["valid"])
+
+        # Cle vide ou invalide
+        resp_invalid = self.client.post(
+            "/api/license/verify",
+            json={"key": "INVALID"}
+        )
+        self.assertEqual(resp_invalid.status_code, 400)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
