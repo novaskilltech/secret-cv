@@ -1,8 +1,14 @@
 import io
 import os
+import sys
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import quote
+
+# Ensure current and backend directory are in sys.path for Vercel / serverless runtime
+backend_dir = str(Path(__file__).resolve().parent)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
@@ -94,8 +100,24 @@ async def value_error_handler(_: Request, exc: ValueError):
 
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/landing", response_class=HTMLResponse)
+@app.get("/pricing", response_class=HTMLResponse)
 async def index():
+    content = (static_dir / "landing.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=content)
+
+
+@app.get("/tools", response_class=HTMLResponse)
+@app.get("/app", response_class=HTMLResponse)
+async def tools():
     content = (static_dir / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=content)
+
+
+@app.get("/terms", response_class=HTMLResponse)
+@app.get("/cgu", response_class=HTMLResponse)
+async def terms():
+    content = (static_dir / "terms.html").read_text(encoding="utf-8")
     return HTMLResponse(content=content)
 
 

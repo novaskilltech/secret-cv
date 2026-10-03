@@ -112,10 +112,17 @@ class NovaPdfEndpointsTest(unittest.TestCase):
         cls.sample_html = b"<html><body><h1>NOVA</h1><p>Bonjour HTML.</p></body></html>"
 
     def test_homepage_renders(self):
+        # Homepage renders landing page
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("NOVA PDF Suite", response.text)
-        self.assertIn("Convertir depuis PDF", response.text)
+        self.assertIn("NOVA PDF Unlimited", response.text)
+        self.assertIn("9,99 €", response.text)
+
+        # /tools renders the PDF tools suite
+        response_tools = self.client.get("/tools")
+        self.assertEqual(response_tools.status_code, 200)
+        self.assertIn("NOVA PDF Suite", response_tools.text)
+        self.assertIn("Convertir depuis PDF", response_tools.text)
 
     def test_merge_endpoint(self):
         response = self.client.post(

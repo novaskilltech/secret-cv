@@ -7,6 +7,7 @@ import textwrap
 import urllib.error
 import urllib.request
 import zipfile
+import re
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -72,8 +73,13 @@ SIGNATURE_POSITIONS = {
 }
 
 # Temporary file management - P0.1 security fix
-TEMP_DIR = Path(os.getenv("TMPDIR", "/tmp/nova"))
-TEMP_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+import tempfile
+_default_temp = Path(tempfile.gettempdir()) / "nova"
+TEMP_DIR = Path(os.getenv("TMPDIR", str(_default_temp)))
+try:
+    TEMP_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+except Exception:
+    TEMP_DIR = Path(tempfile.gettempdir())
 MAX_TEMP_FILES = int(os.getenv("NOVA_MAX_TEMP_FILES", "1000"))
 
 
@@ -224,6 +230,7 @@ def save_upload_file(upload_file) -> Path:
     tmp_path = _new_temp_path(suffix)
     
     upload_file.file.seek(0)
+    limit_exceeded = False
     try:
         with open(tmp_path, 'wb') as tmp:
             copied = 0
@@ -233,14 +240,24 @@ def save_upload_file(upload_file) -> Path:
                     break
                 copied += len(chunk)
                 if copied > MAX_UPLOAD_BYTES:
-                    tmp_path.unlink(missing_ok=True)
-                    raise ValueError(
-                        f"Le fichier depasse la limite autorisee de {MAX_UPLOAD_BYTES // (1024 * 1024)} Mo."
-                    )
+                    limit_exceeded = True
+                    break
                 tmp.write(chunk)
     except Exception:
-        tmp_path.unlink(missing_ok=True)
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
         raise
+    
+    if limit_exceeded:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        raise ValueError(
+            f"Le fichier depasse la limite autorisee de {MAX_UPLOAD_BYTES // (1024 * 1024)} Mo."
+        )
     
     return tmp_path
 
@@ -1048,32 +1065,58 @@ def censor_pdf(file, terms: str, case_sensitive: bool = False) -> bytes:
                 if page_index >= len(images):
                     break
 
-                words = page.extract_words() or []
                 image = images[page_index]
                 draw = ImageDraw.Draw(image)
                 scale_x = image.width / float(page.width or image.width)
                 scale_y = image.height / float(page.height or image.height)
                 page_redacted = False
 
+                # Recherche par terme (gere les espaces et multi-mots)
+                for term in lookup_terms:
+                    try:
+                        # On utilise search() de pdfplumber pour trouver les occurences exactes
+                        # même si elles s'étalent sur plusieurs "words"
+                        matches = page.search(term, case=case_sensitive)
+                        for match in matches:
+                            x0 = max(0, int(float(match["x0"]) * scale_x) - 2)
+                            x1 = min(image.width, int(float(match["x1"]) * scale_x) + 2)
+                            top = max(0, int(float(match["top"]) * scale_y) - 2)
+                            bottom = min(image.height, int(float(match["bottom"]) * scale_y) + 2)
+                            draw.rectangle([x0, top, x1, bottom], fill="black")
+                            page_redacted = True
+                    except Exception:
+                        pass
+
+                # Fallback sur les mots individuels (pour securite)
+                words = page.extract_words() or []
                 for word in words:
                     text = (word.get("text") or "").strip()
-                    if not text:
-                        continue
-
+                    if not text: continue
                     haystack = text if case_sensitive else text.casefold()
-                    matches = any(
-                        (term if case_sensitive else term.casefold()) in haystack
-                        for term in lookup_terms
-                    )
-                    if not matches:
-                        continue
+                    if any((t if case_sensitive else t.casefold()) in haystack for t in lookup_terms):
+                        x0 = max(0, int(float(word["x0"]) * scale_x) - 2)
+                        x1 = min(image.width, int(float(word["x1"]) * scale_x) + 2)
+                        top = max(0, int(float(word["top"]) * scale_y) - 2)
+                        bottom = min(image.height, int(float(word["bottom"]) * scale_y) + 2)
+                        draw.rectangle([x0, top, x1, bottom], fill="black")
+                        page_redacted = True
 
-                    x0 = max(0, int(float(word["x0"]) * scale_x) - 2)
-                    x1 = min(image.width, int(float(word["x1"]) * scale_x) + 2)
-                    top = max(0, int(float(word["top"]) * scale_y) - 2)
-                    bottom = min(image.height, int(float(word["bottom"]) * scale_y) + 2)
-                    draw.rectangle([x0, top, x1, bottom], fill="black")
-                    page_redacted = True
+                # Censure des images (Photos, logos, etc.)
+                image_objects = []
+                image_objects.extend(getattr(page, "images", []))
+                image_objects.extend(getattr(page, "figures", []))
+                
+                for img in image_objects:
+                    try:
+                        x0 = max(0, int(float(img["x0"]) * scale_x) - 1)
+                        y0 = max(0, int(float(img["top"]) * scale_y) - 1)
+                        x1 = min(image.width, int(float(img["x1"]) * scale_x) + 1)
+                        y1 = min(image.height, int(float(img["bottom"]) * scale_y) + 1)
+                        if (x1 - x0) < image.width * 0.9 or (y1 - y0) < image.height * 0.9:
+                            draw.rectangle([x0, y0, x1, y1], fill="black")
+                            page_redacted = True
+                    except (KeyError, TypeError, ValueError):
+                        continue
 
                 if page_redacted:
                     redacted_pages += 1
@@ -1361,5 +1404,63 @@ def powerpoint_to_pdf(file) -> bytes:
         if not _normalize_lines(lines):
             raise ValueError("Le fichier PowerPoint ne contient pas de texte exploitable.")
         return _text_lines_to_pdf(lines, title="Conversion PowerPoint vers PDF")
+    finally:
+        cleanup([source_path])
+
+
+def anonymize_pdf(file) -> bytes:
+    """Anonymisation totale des donnees personnelles (Nom, Tel, Social, Photo, etc.)."""
+    source_path = save_upload_file(file)
+    try:
+        # 1. Extraction du texte pour detecter les entites via Regex
+        text = _extract_full_pdf_text(source_path)
+        
+        # Patterns de detection robustes
+        patterns = {
+            "email": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+",
+            "phone": r"(?:\+?\d{1,4}[\s.-]?)?\(?\d{1,4}\)?(?:[\s.-]?\d{2,4}){2,5}", # Format Global
+            "linkedin": r"(?:https?://)?(?:www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+/?",
+            "zip": r"\b\d{5}\b", # Code postal
+        }
+        
+        terms_to_censor = set()
+        
+        # Detection via regex
+        for p_name, p_regex in patterns.items():
+            matches = re.findall(p_regex, text)
+            for m in matches:
+                if len(m.strip()) > 5:
+                    terms_to_censor.add(m.strip())
+        
+        # Detection aggressive des sequences de chiffres (Telephones mal formates)
+        # Trouve des sequences comme "07 36 94 13" ou "05.16.04.04"
+        digit_sequences = re.findall(r"\b\d{2}[\s.-]\d{2}[\s.-]\d{2}[\s.-]\d{2}\b", text)
+        terms_to_censor.update(digit_sequences)
+
+        # Detection des noms et prenoms (Heuristique d'entete)
+        page_texts = _extract_pdf_text_by_page(source_path)
+        if page_texts:
+            first_page_lines = [l.strip() for l in page_texts[0].splitlines() if l.strip()]
+            for i in range(min(6, len(first_page_lines))):
+                line = first_page_lines[i]
+                if any(prefix in line for prefix in ["M.", "Mme", "Mr", "Monsieur", "Madame"]):
+                    terms_to_censor.add(line)
+                    for word in line.split():
+                        if len(word) > 2: terms_to_censor.add(word)
+                
+                if 3 < len(line) < 40 and any(c.isalpha() for c in line):
+                    if line.upper() not in ["CURRICULUM VITAE", "CV", "RESUME", "EXPERIENCES", "FORMATION", "PARCOURS"]:
+                        terms_to_censor.add(line)
+                        for part in line.split():
+                            if len(part) > 2: terms_to_censor.add(part)
+
+        # Nettoyage
+        final_terms_list = [t for t in terms_to_censor if len(str(t).strip()) > 2]
+        if not final_terms_list:
+            return censor_pdf(source_path, "email, @, linkedin")
+
+        final_terms = ",".join(final_terms_list)
+        return censor_pdf(source_path, final_terms)
+
     finally:
         cleanup([source_path])
