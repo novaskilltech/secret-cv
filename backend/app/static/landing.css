@@ -83,6 +83,14 @@ body {
   letter-spacing: -0.02em;
 }
 
+.logo-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(217, 83, 30, 0.2);
+}
+
 .logo-badge {
   background: var(--primary-light);
   color: var(--primary);
