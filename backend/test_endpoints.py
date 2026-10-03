@@ -654,6 +654,53 @@ class NovaPdfEndpointsTest(unittest.TestCase):
         presentation = Presentation(io.BytesIO(response.content))
         self.assertGreater(len(presentation.slides), 0)
 
+    def test_success_and_merci_pages(self):
+        """Test /success and /merci landing endpoints"""
+        resp_success = self.client.get("/success")
+        self.assertEqual(resp_success.status_code, 200)
+        self.assertIn("Paiement Confirmé", resp_success.text)
+
+        resp_merci = self.client.get("/merci")
+        self.assertEqual(resp_merci.status_code, 200)
+        self.assertIn("Paiement Confirmé", resp_merci.text)
+
+    def test_stripe_portal_endpoint(self):
+        """Test /api/stripe/portal endpoint"""
+        response = self.client.get("/api/stripe/portal")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("portal_url", data)
+        self.assertTrue(data["portal_url"].startswith("https://billing.stripe.com/"))
+
+    def test_verify_stripe_session_valid_and_invalid(self):
+        """Test /api/stripe/verify-session/{session_id}"""
+        valid_resp = self.client.get("/api/stripe/verify-session/cs_live_123456789")
+        self.assertEqual(valid_resp.status_code, 200)
+        self.assertEqual(valid_resp.json()["status"], "valid")
+
+        invalid_resp = self.client.get("/api/stripe/verify-session/invalid_prefix")
+        self.assertEqual(invalid_resp.status_code, 400)
+
+    def test_stripe_webhook_endpoint(self):
+        """Test /api/stripe/webhook handling"""
+        payload = {
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "id": "cs_test_sample",
+                    "payment_status": "paid",
+                }
+            }
+        }
+        response = self.client.post(
+            "/api/stripe/webhook",
+            json=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["event_type"], "checkout.session.completed")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

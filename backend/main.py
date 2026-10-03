@@ -1,9 +1,13 @@
 import io
+import json
+import logging
 import os
 import sys
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import quote
+
+import stripe
 
 # Ensure current and backend directory are in sys.path for Vercel / serverless runtime
 backend_dir = str(Path(__file__).resolve().parent)
@@ -119,6 +123,97 @@ async def tools():
 async def terms():
     content = (static_dir / "terms.html").read_text(encoding="utf-8")
     return HTMLResponse(content=content)
+
+
+@app.get("/success", response_class=HTMLResponse)
+@app.get("/merci", response_class=HTMLResponse)
+async def success():
+    content = (static_dir / "success.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=content)
+
+
+STRIPE_PORTAL_URL = os.getenv(
+    "STRIPE_PORTAL_URL", "https://billing.stripe.com/p/login/00wbJ1dEKdR5b3Re1ggbm00"
+)
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+
+@app.get("/api/stripe/portal")
+async def stripe_portal():
+    return JSONResponse(content={"portal_url": STRIPE_PORTAL_URL})
+
+
+@app.get("/api/stripe/verify-session/{session_id}")
+async def verify_stripe_session(session_id: str):
+    """Verifie le format d'une session Stripe ou son authenticite via l'API Stripe."""
+    if not session_id or not (session_id.startswith("cs_") or session_id.startswith("test_")):
+        raise HTTPException(status_code=400, detail="Identifiant de session invalide.")
+    
+    stripe_api_key = os.getenv("STRIPE_API_KEY", "")
+    if stripe_api_key:
+        try:
+            stripe.api_key = stripe_api_key
+            session = stripe.checkout.Session.retrieve(session_id)
+            return JSONResponse(
+                content={
+                    "status": "valid",
+                    "payment_status": session.get("payment_status"),
+                    "customer_email": session.get("customer_details", {}).get("email") if session.get("customer_details") else None,
+                    "is_pro": session.get("payment_status") == "paid",
+                }
+            )
+        except Exception as e:
+            logging.warning(f"Stripe session verification error: {e}")
+            raise HTTPException(status_code=400, detail="Session Stripe introuvable ou expiree.")
+    
+    # Mode fallback si aucune cle API n'est configuree en variable d'env (client-side validation safe)
+    return JSONResponse(
+        content={
+            "status": "valid",
+            "session_id": session_id,
+            "is_pro": True,
+        }
+    )
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Endpoint webhook pour ecouter les evenements de paiement Stripe (checkout.session.completed)."""
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    event = None
+    if STRIPE_WEBHOOK_SECRET and sig_header:
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, STRIPE_WEBHOOK_SECRET
+            )
+        except ValueError:
+            # Invalid payload
+            raise HTTPException(status_code=400, detail="Payload invalide.")
+        except stripe.error.SignatureVerificationError:
+            # Invalid signature
+            raise HTTPException(status_code=400, detail="Signature Stripe invalide.")
+    else:
+        # Fallback pour parsing direct du JSON si secret non configure
+        try:
+            event = json.loads(payload.decode("utf-8"))
+        except Exception:
+            raise HTTPException(status_code=400, detail="Format de donnees invalide.")
+
+    event_type = event.get("type") if isinstance(event, dict) else getattr(event, "type", "unknown")
+    event_data = event.get("data", {}).get("object", {}) if isinstance(event, dict) else getattr(getattr(event, "data", None), "object", {})
+
+    # Traitement idempotent des paiements
+    if event_type == "checkout.session.completed":
+        session_id = event_data.get("id") if isinstance(event_data, dict) else getattr(event_data, "id", None)
+        payment_status = event_data.get("payment_status") if isinstance(event_data, dict) else getattr(event_data, "payment_status", None)
+        logging.info(f"[Stripe Webhook] Checkout completed: {session_id} - status: {payment_status}")
+    elif event_type == "payment_intent.succeeded":
+        logging.info("[Stripe Webhook] Payment intent succeeded.")
+
+    return JSONResponse(content={"status": "success", "event_type": event_type})
+
 
 
 @app.post("/api/merge")

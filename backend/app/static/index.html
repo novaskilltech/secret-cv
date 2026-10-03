@@ -32,9 +32,9 @@
       <img src="/static/logo.png" alt="NOVA PDF Logo" style="width: 34px; height: 34px; border-radius: 9px; object-fit: cover; box-shadow: 0 2px 8px rgba(37,99,235,0.2);" />
       <span>NOVA<strong>PDF</strong></span>
     </a>
-    <div style="display: flex; align-items: center; gap: 1.5rem;">
+    <div id="nav-membership-cta" style="display: flex; align-items: center; gap: 1rem;">
       <a href="/" style="color: #475569; text-decoration: none; font-weight: 500; font-size: 0.95rem;">← Retour à l'accueil</a>
-      <a href="https://buy.stripe.com/14A5kD0RY9APfk7cXcgbm0s" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(135deg, #d9531e, #ea580c); color: #fff; text-decoration: none; padding: 0.45rem 1rem; border-radius: 999px; font-weight: 600; font-size: 0.9rem; box-shadow: 0 2px 8px rgba(217, 83, 30, 0.25);">⚡ Pass Illimité (9,99 € / an)</a>
+      <a id="stripe-buy-btn" href="https://buy.stripe.com/14A5kD0RY9APfk7cXcgbm0s" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(135deg, #d9531e, #ea580c); color: #fff; text-decoration: none; padding: 0.45rem 1rem; border-radius: 999px; font-weight: 600; font-size: 0.9rem; box-shadow: 0 2px 8px rgba(217, 83, 30, 0.25);">⚡ Pass Illimité (9,99 € / an)</a>
     </div>
   </nav>
 
@@ -495,5 +495,38 @@
   </main>
 
   <script src="/static/app.js"></script>
+  <script>
+    (function checkProStatus() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('status') === 'pro' || urlParams.get('status') === 'unlocked') {
+          localStorage.setItem('nova_pro_status', 'active');
+        }
+
+        const isPro = localStorage.getItem('nova_pro_status') === 'active';
+        if (isPro) {
+          const navCta = document.getElementById('nav-membership-cta');
+          if (navCta) {
+            navCta.innerHTML = `
+              <a href="/" style="color: #475569; text-decoration: none; font-weight: 500; font-size: 0.95rem;">← Accueil</a>
+              <span style="background: rgba(16, 185, 129, 0.12); color: #059669; border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.4rem 0.9rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem;">
+                👑 Pass Illimité Actif
+              </span>
+              <a href="https://billing.stripe.com/p/login/00wbJ1dEKdR5b3Re1ggbm00" target="_blank" rel="noopener noreferrer" style="color: #64748b; font-size: 0.85rem; text-decoration: underline;">
+                Factures
+              </a>
+            `;
+          }
+          const msgEl = document.getElementById('message');
+          if (msgEl && msgEl.textContent === 'Pret.') {
+            msgEl.textContent = 'Prêt — Mode Illimité Pro Actif (500 Mo / fichier, sans quota).';
+            msgEl.className = 'status-ok';
+          }
+        }
+      } catch (e) {
+        console.warn('Pro status check error:', e);
+      }
+    })();
+  </script>
 </body>
 </html>

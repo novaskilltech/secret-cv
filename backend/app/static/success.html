@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Félicitations ! Votre Pass Illimité NOVA PDF est actif</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/landing.css" />
+  <style>
+    .success-hero {
+      min-height: 85vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 1rem;
+      text-align: center;
+    }
+    .success-box {
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 24px;
+      padding: 3.5rem 2.5rem;
+      max-width: 680px;
+      width: 100%;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 40px rgba(16, 185, 129, 0.15);
+      position: relative;
+      backdrop-filter: blur(16px);
+    }
+    .success-badge-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      margin: 0 auto 1.5rem;
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+      animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      0% { transform: scale(0); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .success-box h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.8rem;
+    }
+    .success-box p.lead {
+      font-size: 1.15rem;
+      color: var(--text-muted, #94a3b8);
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    .features-unlocked-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+      text-align: left;
+    }
+    .features-unlocked-card h4 {
+      color: #10b981;
+      font-size: 1.05rem;
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .features-unlocked-card ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+      font-size: 0.95rem;
+      color: #e2e8f0;
+    }
+    @media (max-width: 600px) {
+      .features-unlocked-card ul { grid-template-columns: 1fr; }
+    }
+    .features-unlocked-card li span {
+      color: #10b981;
+      font-weight: bold;
+      margin-right: 0.4rem;
+    }
+    .cta-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .session-info {
+      margin-top: 1.5rem;
+      font-size: 0.85rem;
+      color: #64748b;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body class="dark-theme">
+  <!-- Navbar -->
+  <header class="navbar">
+    <div class="container nav-content">
+      <a href="/" class="brand" style="text-decoration: none;">
+        <img src="/static/logo.png" alt="NOVA PDF Logo" class="logo-img" />
+        <span class="logo-text">NOVA<strong>PDF</strong></span>
+      </a>
+      <div class="nav-cta">
+        <a href="/tools" class="btn btn-secondary btn-sm">Outils PDF</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="success-hero">
+    <div class="success-box">
+      <div class="success-badge-icon">✓</div>
+      <h1>Paiement Confirmé !</h1>
+      <p class="lead">
+        Merci pour votre confiance. Votre <strong>Pass Illimité NOVA PDF (9,99 € / an)</strong> est immédiatement actif sur cet appareil.
+      </p>
+
+      <div class="features-unlocked-card">
+        <h4>👑 Privilèges Pro débloqués :</h4>
+        <ul>
+          <li><span>✓</span> Traitement illimité de fichiers</li>
+          <li><span>✓</span> Quota jusqu'à 500 Mo / fichier</li>
+          <li><span>✓</span> Vitesse de conversion prioritaire</li>
+          <li><span>✓</span> OCR & IA intégrée sans limite</li>
+          <li><span>✓</span> Confidentialité & purge immédiate</li>
+          <li><span>✓</span> Accès illimité pendant 1 an</li>
+        </ul>
+      </div>
+
+      <div class="cta-actions">
+        <a href="/tools?status=pro" class="btn btn-primary btn-block btn-pulse" style="font-size: 1.1rem; padding: 1rem 1.5rem; text-decoration: none;">
+          ⚡ Ouvrir l'espace Outils PDF (Mode Pro)
+        </a>
+        <a href="https://billing.stripe.com/p/login/00wbJ1dEKdR5b3Re1ggbm00" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block" style="text-decoration: none; font-size: 0.95rem;">
+          📄 Télécharger ma facture Stripe
+        </a>
+      </div>
+
+      <div class="session-info" id="session-display"></div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-content" style="justify-content: center; text-align: center;">
+      <p style="color: #64748b; font-size: 0.9rem;">
+        Besoin d'aide ? Contactez notre support : <a href="mailto:contact@novapdf.app" style="color: #60a5fa;">contact@novapdf.app</a>
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    // Activation automatique du mode Pro dans le navigateur du client
+    try {
+      localStorage.setItem('nova_pro_status', 'active');
+      localStorage.setItem('nova_pro_activated_at', new Date().toISOString());
+      
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get('session_id');
+      if (sessionId) {
+        localStorage.setItem('nova_stripe_session_id', sessionId);
+        const displayEl = document.getElementById('session-display');
+        if (displayEl) {
+          displayEl.textContent = 'Identifiant de session sécurisé : ' + sessionId;
+        }
+      }
+    } catch (e) {
+      console.warn('LocalStorage error:', e);
+    }
+  </script>
+</body>
+</html>
