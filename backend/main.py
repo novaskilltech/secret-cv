@@ -53,7 +53,7 @@ from pdf_utils import (
 
 app = FastAPI(
     title="NOVA PDF Tools",
-    description="Prototype open-source d'un editeur PDF web.",
+    description="Suite SaaS complète de traitement et sécurisation PDF pour professionnels et particuliers.",
 )
 
 cors_origins = [
